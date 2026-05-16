@@ -75,6 +75,7 @@ export async function RoleDashboard({ roleScope, pathname }: { roleScope: RoleSc
         message="Your account session is active, but your user record could not be found or is not linked to a school. Please sign out and log in again."
         actionHref="/login"
         actionLabel="Sign in again"
+        actionMode="signout"
       />
     );
   }
