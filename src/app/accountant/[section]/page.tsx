@@ -106,9 +106,9 @@ export default async function AccountantSectionPage({ params }: { params: Promis
             <CardContent className="space-y-2 text-sm">
               {core.payments.slice(0, 30).map((item) => (
                 <div key={item.id} className="glass-soft rounded-xl p-3">
-                  <p className="font-medium">{item.reference}</p>
-                  <p>{naira(item.amount)} via {item.channel}</p>
-                  <p>Status: {statusLabel(item.status)} • Date: {formatDate(item.paidAt)}</p>
+                  <p className="font-medium">{item.invoice?.invoiceNumber ?? `Payment ${item.id.slice(0, 8)}`}</p>
+                  <p>{naira(item.amount)} via {item.method}</p>
+                  <p>Status: {statusLabel(item.status)} • Date: {formatDate(item.createdAt)}</p>
                 </div>
               ))}
               {!core.payments.length ? <p className="text-slate-500">No payment records available.</p> : null}
@@ -176,8 +176,8 @@ export default async function AccountantSectionPage({ params }: { params: Promis
             <Card>
               <CardHeader><CardTitle>Payment Channels</CardTitle></CardHeader>
               <CardContent className="space-y-2 text-sm">
-                {Array.from(new Set(core.payments.map((item) => item.channel))).map((channel) => (
-                  <p key={channel}>{channel}: {core.payments.filter((item) => item.channel === channel).length} txns</p>
+                {Array.from(new Set(core.payments.map((item) => item.method))).map((method) => (
+                  <p key={method}>{method}: {core.payments.filter((item) => item.method === method).length} txns</p>
                 ))}
                 {!core.payments.length ? <p className="text-slate-500">No channel records yet.</p> : null}
               </CardContent>
@@ -191,7 +191,7 @@ export default async function AccountantSectionPage({ params }: { params: Promis
     <PortalShell
       role={user.role}
       schoolName={core.school?.name}
-      schoolLogoUrl={core.school?.branding?.logoUrl}
+      schoolLogoUrl={core.school?.branding?.logoUrl ?? undefined}
       userName={user.name ?? "Accountant"}
       pathname={`/accountant/${section}`}
       currentSessionName={context.session?.name}

@@ -132,7 +132,7 @@ export function buildSchoolRoleModel(roleScope: Exclude<RoleScope, "superadmin">
       ],
       announcements: mapAnnouncements(core.announcements),
       tableTitle: "Recent Payments",
-      tableRows: core.payments.slice(0, 20).map((payment) => ({ id: payment.id, primary: payment.student?.user.name ?? payment.reference, secondary: payment.reference, status: payment.status, amount: naira(payment.amount), date: formatDate(payment.paidAt) })),
+      tableRows: core.payments.slice(0, 20).map((payment) => ({ id: payment.id, primary: payment.student?.user.name ?? payment.invoice.invoiceNumber, secondary: payment.invoice.invoiceNumber, status: payment.status, amount: naira(payment.amount), date: formatDate(payment.confirmedAt ?? payment.createdAt) })),
     },
     teacher: {
       title: "Teacher Productivity Workspace",
@@ -192,14 +192,14 @@ export function buildSchoolRoleModel(roleScope: Exclude<RoleScope, "superadmin">
           { label: "Late", value: core.attendance.filter((item) => item.status === "LATE").length },
         ],
       },
-      activities: core.payments.slice(0, 6).map((item) => ({ id: item.id, title: `Payment ${item.reference}`, detail: statusLabel(item.status), time: formatDate(item.paidAt) })),
+      activities: core.payments.slice(0, 6).map((item) => ({ id: item.id, title: `Payment ${item.invoice.invoiceNumber}`, detail: statusLabel(item.status), time: formatDate(item.confirmedAt ?? item.createdAt) })),
       tasks: [
         { id: "fee", title: "Pending fee payments", detail: `${core.invoices.filter((item) => item.balance > 0).length} invoices require payment`, time: "Now" },
         { id: "result", title: "Review latest results", detail: "Academic records published", time: "This week" },
       ],
       announcements: mapAnnouncements(core.announcements),
       tableTitle: "Payment History",
-      tableRows: core.payments.slice(0, 20).map((payment) => ({ id: payment.id, primary: payment.reference, secondary: payment.student?.user.name ?? "Student", status: payment.status, amount: naira(payment.amount), date: formatDate(payment.paidAt) })),
+      tableRows: core.payments.slice(0, 20).map((payment) => ({ id: payment.id, primary: payment.invoice.invoiceNumber, secondary: payment.student?.user.name ?? "Student", status: payment.status, amount: naira(payment.amount), date: formatDate(payment.confirmedAt ?? payment.createdAt) })),
     },
     student: {
       title: "Student Academic Dashboard",
@@ -258,14 +258,14 @@ export function buildSchoolRoleModel(roleScope: Exclude<RoleScope, "superadmin">
           { label: "Outstanding", value: Math.round(core.invoices.reduce((sum, item) => sum + item.balance, 0)) },
         ],
       },
-      activities: core.payments.slice(0, 6).map((item) => ({ id: item.id, title: item.reference, detail: `Payment via ${item.channel}`, time: formatDate(item.paidAt) })),
+      activities: core.payments.slice(0, 6).map((item) => ({ id: item.id, title: item.invoice.invoiceNumber, detail: `Payment via ${item.method}`, time: formatDate(item.confirmedAt ?? item.createdAt) })),
       tasks: [
         { id: "debts", title: "Follow overdue debtors", detail: `${core.invoices.filter((item) => item.balance > 0).length} active balances`, time: "Today" },
         { id: "recon", title: "Reconcile payment channels", detail: "Audit transfer/card entries", time: "This week" },
       ],
       announcements: mapAnnouncements(core.announcements),
       tableTitle: "Finance Transactions",
-      tableRows: core.payments.slice(0, 20).map((payment) => ({ id: payment.id, primary: payment.reference, secondary: payment.channel, status: payment.status, amount: naira(payment.amount), date: formatDate(payment.paidAt) })),
+      tableRows: core.payments.slice(0, 20).map((payment) => ({ id: payment.id, primary: payment.invoice.invoiceNumber, secondary: payment.method, status: payment.status, amount: naira(payment.amount), date: formatDate(payment.confirmedAt ?? payment.createdAt) })),
     },
     registrar: {
       title: "Registrar & Admissions Desk",

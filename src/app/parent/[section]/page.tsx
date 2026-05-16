@@ -16,7 +16,7 @@ import { PortalShell } from "@/components/portal-shell";
 import { SetupRequiredScreen } from "@/components/setup-required-screen";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireRole } from "@/lib/auth-guards";
-import { getCoreSchoolDataByContext, getCurrentSchoolByUser, getUserAcademicContext, statusLabel } from "@/lib/data";
+import { getCoreSchoolDataByContext, getCurrentSchoolByUser, getUserAcademicContext } from "@/lib/data";
 import { formatDate, naira } from "@/lib/utils";
 import { ParentInvoiceHub } from "@/app/parent/_components/parent-invoice-hub";
 import { ParentMessagesPanel } from "@/app/parent/_components/parent-messages-panel";
@@ -74,11 +74,29 @@ export default async function ParentSectionPage({ params }: { params: Promise<{ 
   const childIds = new Set(children.map((child) => child.id));
 
   const invoices = core.invoices.filter((invoice) => childIds.has(invoice.studentId));
-  const payments = core.payments.filter((payment) => payment.studentId && childIds.has(payment.studentId));
   const attendance = core.attendance.filter((row) => childIds.has(row.studentId));
   const scores = core.scores.filter((score) => childIds.has(score.studentId));
   const assignments = core.assignments.filter((assignment) => assignment.studentId && childIds.has(assignment.studentId));
   const lessons = core.lessons.filter((lesson) => children.some((child) => child.classId && child.classId === lesson.classId));
+
+  const messageSettings = await prisma.schoolSetting.findMany({
+    where: {
+      schoolId: profile.schoolId,
+      key: { startsWith: `parent_message_${parentProfile.id}_` },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+  });
+
+  const parentMessages = messageSettings
+    .map((item) => {
+      try {
+        return JSON.parse(item.value) as { id: string; recipient: string; subject: string; message: string; status: string; createdAt: string };
+      } catch {
+        return null;
+      }
+    })
+    .filter((item): item is { id: string; recipient: string; subject: string; message: string; status: string; createdAt: string } => Boolean(item));
 
   const [results, receipts] = await Promise.all([
     prisma.result.findMany({
@@ -137,7 +155,7 @@ export default async function ParentSectionPage({ params }: { params: Promise<{ 
     <PortalShell
       role={user.role}
       schoolName={core.school?.name}
-      schoolLogoUrl={core.school?.branding?.logoUrl}
+      schoolLogoUrl={core.school?.branding?.logoUrl ?? undefined}
       userName={user.name ?? "Parent"}
       pathname={`/parent/${section}`}
       currentSessionName={context.session?.name}
@@ -202,7 +220,7 @@ export default async function ParentSectionPage({ params }: { params: Promise<{ 
 
       {sectionKey === "fees" ? (
         <ParentInvoiceHub
-          children={children.map((child) => ({ id: child.id, name: child.user.name }))}
+          childOptions={children.map((child) => ({ id: child.id, name: child.user.name }))}
           invoices={invoiceHubData}
           bank={{
             bankName: core.school?.branding?.bankName,
@@ -332,7 +350,7 @@ export default async function ParentSectionPage({ params }: { params: Promise<{ 
         </Card>
       ) : null}
 
-      {sectionKey === "messages" ? <ParentMessagesPanel /> : null}
+      {sectionKey === "messages" ? <ParentMessagesPanel initialMessages={parentMessages} /> : null}
       {sectionKey === "profile" ? <ParentProfilePanel /> : null}
 
       {sectionKey === "school-calendar" ? (

@@ -24,7 +24,7 @@ export default async function BrandingSettingsPage() {
     <PortalShell
       role={user.role}
       schoolName={profile.school.name}
-      schoolLogoUrl={profile.school.branding?.logoUrl}
+      schoolLogoUrl={profile.school.branding?.logoUrl ?? undefined}
       userName={user.name ?? "Admin"}
       pathname="/admin/settings/branding"
       primaryColor={profile.school.branding?.primaryColor}

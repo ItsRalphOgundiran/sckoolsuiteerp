@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -26,11 +26,21 @@ type TermDto = {
   resumptionDate: string | null;
 };
 
-export function AcademicCalendarClient() {
-  const [sessions, setSessions] = useState<SessionDto[]>([]);
-  const [terms, setTerms] = useState<TermDto[]>([]);
-  const [selectedSessionId, setSelectedSessionId] = useState("");
-  const [selectedTermId, setSelectedTermId] = useState("");
+export function AcademicCalendarClient({
+  initialSessions,
+  initialTerms,
+  initialSessionId,
+  initialTermId,
+}: {
+  initialSessions: SessionDto[];
+  initialTerms: TermDto[];
+  initialSessionId?: string;
+  initialTermId?: string;
+}) {
+  const [sessions, setSessions] = useState<SessionDto[]>(initialSessions);
+  const [terms, setTerms] = useState<TermDto[]>(initialTerms);
+  const [selectedSessionId, setSelectedSessionId] = useState(initialSessionId ?? "");
+  const [selectedTermId, setSelectedTermId] = useState(initialTermId ?? "");
   const [message, setMessage] = useState("");
 
   async function loadSetup() {
@@ -45,10 +55,6 @@ export function AcademicCalendarClient() {
     if (activeSession) setSelectedSessionId(activeSession.id);
     if (activeTerm) setSelectedTermId(activeTerm.id);
   }
-
-  useEffect(() => {
-    void loadSetup();
-  }, []);
 
   const visibleTerms = useMemo(
     () => terms.filter((term) => !selectedSessionId || term.sessionId === selectedSessionId),

@@ -27,11 +27,11 @@ function money(value: number) {
 }
 
 export function ParentInvoiceHub({
-  children,
+  childOptions,
   invoices,
   bank,
 }: {
-  children: Child[];
+  childOptions: Child[];
   invoices: Invoice[];
   bank: { bankName?: string | null; bankAccountName?: string | null; bankAccountNumber?: string | null; bankInstructions?: string | null };
 }) {
@@ -83,7 +83,7 @@ export function ParentInvoiceHub({
       <div className="glass-soft grid gap-2 rounded-xl p-3 md:grid-cols-2">
         <select className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" value={childFilter} onChange={(e) => setChildFilter(e.target.value)}>
           <option value="ALL">All Children</option>
-          {children.map((child) => <option key={child.id} value={child.id}>{child.name}</option>)}
+          {childOptions.map((child) => <option key={child.id} value={child.id}>{child.name}</option>)}
         </select>
         <select className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
           <option value="ALL">All Status</option>

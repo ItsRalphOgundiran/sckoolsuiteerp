@@ -266,7 +266,7 @@ export default async function TeacherSectionPage({ params }: { params: Promise<{
     <PortalShell
       role={user.role}
       schoolName={core.school?.name}
-      schoolLogoUrl={core.school?.branding?.logoUrl}
+      schoolLogoUrl={core.school?.branding?.logoUrl ?? undefined}
       userName={user.name ?? "Teacher"}
       pathname={`/teacher/${section}`}
       currentSessionName={context.session?.name}

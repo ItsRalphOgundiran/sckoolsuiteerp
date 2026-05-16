@@ -62,7 +62,7 @@ export default async function StudentSectionPage({ params }: { params: Promise<{
       <PortalShell
         role={user.role}
         schoolName={core.school?.name}
-        schoolLogoUrl={core.school?.branding?.logoUrl}
+        schoolLogoUrl={core.school?.branding?.logoUrl ?? undefined}
         userName={user.name ?? "Student"}
         pathname={`/student/${section}`}
         currentSessionName={context.session?.name}
@@ -84,10 +84,12 @@ export default async function StudentSectionPage({ params }: { params: Promise<{
     );
   }
 
-  const mySubjects = core.subjects.filter((subject) => subject.classId === studentProfile.classId);
-  const myAssignments = core.assignments.filter((assignment) => assignment.studentId === studentProfile.id);
-  const myAttendance = core.attendance.filter((attendance) => attendance.studentId === studentProfile.id);
-  const myScores = core.scores.filter((score) => score.studentId === studentProfile.id);
+  const student = studentProfile;
+
+  const mySubjects = core.subjects.filter((subject) => subject.classId === student.classId);
+  const myAssignments = core.assignments.filter((assignment) => assignment.studentId === student.id);
+  const myAttendance = core.attendance.filter((attendance) => attendance.studentId === student.id);
+  const myScores = core.scores.filter((score) => score.studentId === student.id);
 
   const pendingAssignments = myAssignments.filter((assignment) => !assignment.submittedAt).length;
   const presentCount = myAttendance.filter((item) => item.status === "PRESENT").length;
@@ -102,9 +104,9 @@ export default async function StudentSectionPage({ params }: { params: Promise<{
               <CardTitle>My Profile</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
-              <p>Name: {studentProfile.user.name}</p>
-              <p>Email: {studentProfile.user.email}</p>
-              <p>Class: {studentProfile.class?.name ?? "Not assigned"}</p>
+              <p>Name: {student.user.name}</p>
+              <p>Email: {student.user.email}</p>
+              <p>Class: {student.class?.name ?? "Not assigned"}</p>
               <p>Current Session: {context.session?.name ?? "-"}</p>
               <p>Current Term: {context.term?.name ?? "-"}</p>
             </CardContent>
@@ -189,13 +191,13 @@ export default async function StudentSectionPage({ params }: { params: Promise<{
               <CardTitle>LMS Content</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
-              {core.lessons.filter((lesson) => lesson.classId === studentProfile.classId).slice(0, 20).map((lesson) => (
+              {core.lessons.filter((lesson) => lesson.classId === student.classId).slice(0, 20).map((lesson) => (
                 <div key={lesson.id} className="glass-soft rounded-xl p-3">
                   <p className="font-medium">{lesson.title}</p>
                   <p>{lesson.subject?.name ?? "Subject"} • Uploaded: {formatDate(lesson.createdAt)}</p>
                 </div>
               ))}
-              {!core.lessons.filter((lesson) => lesson.classId === studentProfile.classId).length ? <p className="text-slate-500">No lesson notes available.</p> : null}
+              {!core.lessons.filter((lesson) => lesson.classId === student.classId).length ? <p className="text-slate-500">No lesson notes available.</p> : null}
             </CardContent>
           </Card>
         );
@@ -228,7 +230,7 @@ export default async function StudentSectionPage({ params }: { params: Promise<{
             <CardContent className="space-y-2 text-sm">
               <p>Session: {context.session?.name ?? "-"}</p>
               <p>Term: {context.term?.name ?? "-"}</p>
-              <Link href={`/reports/${studentProfile.id}`} className="inline-block text-[var(--brand-primary)] underline">
+              <Link href={`/reports/${student.id}`} className="inline-block text-[var(--brand-primary)] underline">
                 Open My Report Card
               </Link>
             </CardContent>
@@ -260,7 +262,7 @@ export default async function StudentSectionPage({ params }: { params: Promise<{
     <PortalShell
       role={user.role}
       schoolName={core.school?.name}
-      schoolLogoUrl={core.school?.branding?.logoUrl}
+      schoolLogoUrl={core.school?.branding?.logoUrl ?? undefined}
       userName={user.name ?? "Student"}
       pathname={`/student/${section}`}
       currentSessionName={context.session?.name}

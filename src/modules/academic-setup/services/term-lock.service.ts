@@ -10,7 +10,7 @@ export class TermLockService {
       throw new Error("Term not found.");
     }
 
-    if ([AcademicStatus.CLOSED, AcademicStatus.ARCHIVED].includes(term.status)) {
+    if (term.status === AcademicStatus.CLOSED || term.status === AcademicStatus.ARCHIVED) {
       throw new Error("This term is closed. Results, invoices, attendance, and reports are protected from editing.");
     }
 

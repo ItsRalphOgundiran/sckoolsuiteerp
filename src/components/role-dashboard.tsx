@@ -91,7 +91,7 @@ export async function RoleDashboard({ roleScope, pathname }: { roleScope: RoleSc
     <PortalShell
       role={user.role}
       schoolName={core.school?.name}
-      schoolLogoUrl={core.school?.branding?.logoUrl}
+      schoolLogoUrl={core.school?.branding?.logoUrl ?? undefined}
       userName={user.name ?? "User"}
       pathname={pathname}
       currentSessionName={context.session?.name}

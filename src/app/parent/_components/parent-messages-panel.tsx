@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 type Message = {
   id: string;
@@ -11,8 +11,8 @@ type Message = {
   createdAt: string;
 };
 
-export function ParentMessagesPanel() {
-  const [messages, setMessages] = useState<Message[]>([]);
+export function ParentMessagesPanel({ initialMessages = [] }: { initialMessages?: Message[] }) {
+  const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [toast, setToast] = useState("");
   const [form, setForm] = useState({ recipient: "School Admin", subject: "", message: "" });
 
@@ -21,10 +21,6 @@ export function ParentMessagesPanel() {
     const data = await response.json();
     setMessages(Array.isArray(data) ? data : []);
   }
-
-  useEffect(() => {
-    void loadMessages();
-  }, []);
 
   async function submit() {
     const response = await fetch("/api/parent/messages", {

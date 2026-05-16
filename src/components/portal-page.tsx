@@ -74,7 +74,7 @@ export async function PortalPage({
     <PortalShell
       role={user.role}
       schoolName={core.school?.name}
-      schoolLogoUrl={core.school?.branding?.logoUrl}
+      schoolLogoUrl={core.school?.branding?.logoUrl ?? undefined}
       userName={user.name ?? "User"}
       pathname={pathname}
       primaryColor={core.school?.branding?.primaryColor}

@@ -5,14 +5,16 @@ import { Bell, ChevronDown, Moon, Search, Sun } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 export function PortalTopbar({ pathname, userName }: { pathname: string; userName: string }) {
-  const [dark, setDark] = useState(false);
+  const [dark, setDark] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("ui-theme") === "dark";
+  });
   const [notifications] = useState(3);
 
   useEffect(() => {
-    const initial = window.localStorage.getItem("ui-theme") === "dark";
-    setDark(initial);
-    document.documentElement.classList.toggle("dark", initial);
-  }, []);
+    document.documentElement.classList.toggle("dark", dark);
+    window.localStorage.setItem("ui-theme", dark ? "dark" : "light");
+  }, [dark]);
 
   const crumbs = useMemo(() => {
     return pathname
@@ -22,12 +24,7 @@ export function PortalTopbar({ pathname, userName }: { pathname: string; userNam
   }, [pathname]);
 
   function toggleTheme() {
-    setDark((value) => {
-      const next = !value;
-      window.localStorage.setItem("ui-theme", next ? "dark" : "light");
-      document.documentElement.classList.toggle("dark", next);
-      return next;
-    });
+    setDark((value) => !value);
   }
 
   return (
