@@ -204,19 +204,66 @@ export default async function StudentSectionPage({ params }: { params: Promise<{
 
       case "results":
         return (
-          <Card>
-            <CardHeader>
-              <CardTitle>Result Summary</CardTitle>
+          <Card className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
+            <CardHeader className="bg-gradient-to-r from-[var(--brand-primary)] to-[var(--brand-secondary)] text-white">
+              <CardTitle className="text-lg text-white">Result Summary</CardTitle>
+              <p className="text-xs text-white/80">{context.term?.name ?? "-"} / {context.session?.name ?? "-"}</p>
             </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              <p>Average Score: {avgScore.toFixed(1)}%</p>
-              {myScores.slice(0, 20).map((score) => (
-                <div key={score.id} className="glass-soft rounded-xl p-3">
-                  <p className="font-medium">{score.subject.name}</p>
-                  <p>Total: {score.total}% • Grade: {score.grade} • GPA: {score.gpa.toFixed(2)}</p>
+            <CardContent className="space-y-4 p-4">
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded-xl border border-blue-200 bg-blue-50 p-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-700">Average Score</p>
+                  <p className="mt-1 text-xl font-extrabold text-slate-900">{avgScore.toFixed(1)}%</p>
                 </div>
-              ))}
-              {!myScores.length ? <p className="text-slate-500">No results published yet.</p> : null}
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">Subjects</p>
+                  <p className="mt-1 text-xl font-extrabold text-slate-900">{myScores.length}</p>
+                </div>
+                <div className="rounded-xl border border-violet-200 bg-violet-50 p-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">Top Grade</p>
+                  <p className="mt-1 text-xl font-extrabold text-slate-900">{myScores.length ? [...myScores].sort((a, b) => b.total - a.total)[0].grade : "-"}</p>
+                </div>
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">Top Score</p>
+                  <p className="mt-1 text-xl font-extrabold text-slate-900">{myScores.length ? `${Math.max(...myScores.map((s) => s.total)).toFixed(1)}%` : "-"}</p>
+                </div>
+              </div>
+
+              {myScores.length ? (
+                <div className="overflow-hidden rounded-xl border border-slate-200">
+                  <div className="border-b border-slate-200 bg-slate-50 px-3 py-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">Subject Performance</p>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm">
+                      <thead>
+                        <tr className="bg-slate-100 text-left text-[11px] uppercase tracking-wide text-slate-600">
+                          <th className="px-3 py-2">Subject</th>
+                          <th className="px-3 py-2 text-right">Score</th>
+                          <th className="px-3 py-2 text-right">Grade</th>
+                          <th className="px-3 py-2 text-right">GPA</th>
+                          <th className="px-3 py-2">Progress</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {myScores.slice(0, 20).map((score, idx) => (
+                          <tr key={score.id} className={idx % 2 ? "bg-white" : "bg-slate-50/70"}>
+                            <td className="px-3 py-2 font-medium text-slate-800">{score.subject.name}</td>
+                            <td className="px-3 py-2 text-right font-semibold text-slate-900">{score.total.toFixed(1)}%</td>
+                            <td className="px-3 py-2 text-right"><span className="rounded-full bg-slate-900 px-2 py-0.5 text-[11px] font-semibold text-white">{score.grade}</span></td>
+                            <td className="px-3 py-2 text-right text-slate-700">{score.gpa.toFixed(2)}</td>
+                            <td className="px-3 py-2">
+                              <div className="h-2 rounded-full bg-slate-200">
+                                <div className="h-2 rounded-full bg-gradient-to-r from-[var(--brand-primary)] to-[var(--brand-secondary)]" style={{ width: `${Math.max(0, Math.min(100, score.total))}%` }} />
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : <p className="text-sm text-slate-500">No results published yet.</p>}
             </CardContent>
           </Card>
         );

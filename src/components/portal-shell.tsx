@@ -40,6 +40,17 @@ export function PortalShell({
 }) {
   const nav = navByRole[role] ?? [];
   const activeTermLabel = currentSessionName || currentTermName ? `${currentSessionName ?? "-"} / ${currentTermName ?? "-"}` : "No academic context selected";
+  const normalizedSchoolLogoUrl = schoolLogoUrl
+    ? schoolLogoUrl.startsWith("http://") || schoolLogoUrl.startsWith("https://") || schoolLogoUrl.startsWith("/")
+      ? schoolLogoUrl
+      : `/${schoolLogoUrl}`
+    : undefined;
+  const schoolInitials = (schoolName ?? "Sckool Suite")
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
 
   return (
     <div
@@ -52,18 +63,20 @@ export function PortalShell({
       }
     >
       <input id="shell-collapse" type="checkbox" className="peer hidden" />
-      <div className="mx-auto grid max-w-[1440px] grid-cols-1 gap-4 px-4 py-4 transition-all duration-300 lg:[grid-template-columns:250px_1fr] peer-checked:lg:[grid-template-columns:90px_1fr]">
+      <div className="grid w-full grid-cols-1 gap-4 px-4 py-4 transition-all duration-300 lg:[grid-template-columns:250px_1fr] peer-checked:lg:[grid-template-columns:90px_1fr]">
         <aside className="no-print glass-panel rounded-2xl p-4 lg:sticky lg:top-4 lg:h-[calc(100vh-2rem)]">
           <div className="mb-5 rounded-xl bg-gradient-to-br from-[var(--brand-primary)] to-[var(--brand-secondary)] p-4 text-white">
             <div className="mb-2 flex items-center gap-2">
-              {schoolLogoUrl ? (
+              {normalizedSchoolLogoUrl ? (
                 <img
-                  src={schoolLogoUrl}
+                  src={normalizedSchoolLogoUrl}
                   alt={`${schoolName ?? "School"} logo`}
                   className="h-9 w-9 rounded-md border border-white/40 bg-white object-contain p-1"
                 />
               ) : (
-                <div className="h-9 w-9 rounded-md border border-white/30 bg-white/15" />
+                <div className="flex h-9 w-9 items-center justify-center rounded-md border border-white/30 bg-white/15 text-xs font-semibold text-white">
+                  {schoolInitials || "SS"}
+                </div>
               )}
               <p className="text-sm opacity-90">Sckool Suite</p>
             </div>

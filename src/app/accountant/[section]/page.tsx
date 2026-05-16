@@ -61,10 +61,10 @@ export default async function AccountantSectionPage({ params }: { params: Promis
     termId: context.term?.id,
   });
 
-  const totalInvoiced = core.invoices.reduce((sum, item) => sum + item.totalAmount, 0);
-  const totalPaid = core.payments.reduce((sum, item) => sum + item.amount, 0);
-  const outstanding = core.invoices.reduce((sum, item) => sum + item.balance, 0);
-  const debtors = core.invoices.filter((item) => item.balance > 0);
+  const totalInvoiced = core.invoices.reduce((sum: number, item: { totalAmount?: number }) => sum + (item.totalAmount || 0), 0 as number);
+  const totalPaid = core.payments.reduce((sum: number, item: { amount?: number }) => sum + (item.amount || 0), 0 as number);
+  const outstanding = core.invoices.reduce((sum: number, item: { balance?: number }) => sum + (item.balance || 0), 0 as number);
+  const debtors = core.invoices.filter((item: { balance: number }) => item.balance > 0);
   const canonical = aliases[section as AllowedSection];
 
   function renderSection() {
@@ -74,7 +74,7 @@ export default async function AccountantSectionPage({ params }: { params: Promis
           <Card>
             <CardHeader><CardTitle>Fee Setup</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">
-              {core.feeItems.length ? core.feeItems.map((item) => (
+               {core.feeItems.length ? core.feeItems.map((item: { id: string; name: string; amount: number; class?: { name: string } }) => (
                 <div key={item.id} className="glass-soft rounded-xl p-3">
                   <p className="font-medium">{item.name}</p>
                   <p>Amount: {naira(item.amount)} • Class: {item.class?.name ?? "All"}</p>
@@ -88,7 +88,7 @@ export default async function AccountantSectionPage({ params }: { params: Promis
           <Card>
             <CardHeader><CardTitle>Invoice Ledger</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">
-              {core.invoices.slice(0, 30).map((item) => (
+                {core.invoices.slice(0, 30).map((item: any) => (
                 <div key={item.id} className="glass-soft rounded-xl p-3">
                   <p className="font-medium">{item.invoiceNumber}</p>
                   <p>{item.student.user.name} • Total: {naira(item.totalAmount)} • Balance: {naira(item.balance)}</p>
@@ -104,7 +104,7 @@ export default async function AccountantSectionPage({ params }: { params: Promis
           <Card>
             <CardHeader><CardTitle>Payment Activity</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">
-              {core.payments.slice(0, 30).map((item) => (
+                {core.payments.slice(0, 30).map((item: any) => (
                 <div key={item.id} className="glass-soft rounded-xl p-3">
                   <p className="font-medium">{item.invoice?.invoiceNumber ?? `Payment ${item.id.slice(0, 8)}`}</p>
                   <p>{naira(item.amount)} via {item.method}</p>
@@ -120,7 +120,7 @@ export default async function AccountantSectionPage({ params }: { params: Promis
           <Card>
             <CardHeader><CardTitle>Issued Receipts</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">
-              {core.invoices.filter((item) => item.receipt).slice(0, 30).map((item) => (
+                {core.invoices.filter((item: any) => item.receipt).slice(0, 30).map((item: any) => (
                 <div key={item.id} className="glass-soft rounded-xl p-3">
                   <p className="font-medium">{item.invoiceNumber}</p>
                   <p>Student: {item.student.user.name} • Paid: {naira(item.amountPaid)}</p>
@@ -136,7 +136,7 @@ export default async function AccountantSectionPage({ params }: { params: Promis
           <Card>
             <CardHeader><CardTitle>Debtors</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">
-              {debtors.slice(0, 30).map((item) => (
+                {debtors.slice(0, 30).map((item: any) => (
                 <div key={item.id} className="glass-soft rounded-xl p-3">
                   <p className="font-medium">{item.student.user.name}</p>
                   <p>Invoice: {item.invoiceNumber} • Outstanding: {naira(item.balance)}</p>

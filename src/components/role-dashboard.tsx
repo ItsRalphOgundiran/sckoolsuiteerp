@@ -120,14 +120,17 @@ export async function RoleDashboard({ roleScope, pathname }: { roleScope: RoleSc
 
       <section className="grid gap-3 xl:grid-cols-[1.3fr_1fr]">
         <AnnouncementWidget items={model.announcements} />
-        <section className="glass-panel rounded-2xl p-4">
-          <h3 className="mb-3 text-base font-semibold text-slate-900">Role Modules</h3>
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800/60">
+          <h3 className="mb-3 text-base font-bold text-slate-900 dark:text-slate-100">Role Modules</h3>
           <div className="grid grid-cols-2 gap-2">
-            {model.modules.map((module) => (
-              <div key={module} className="glass-soft rounded-xl px-3 py-2 text-sm text-slate-700">
-                {module}
-              </div>
-            ))}
+            {model.modules.map((module, i) => {
+              const pills = ["bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200","bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200","bg-violet-100 text-violet-800 dark:bg-violet-900/50 dark:text-violet-200","bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200","bg-rose-100 text-rose-800 dark:bg-rose-900/50 dark:text-rose-200","bg-cyan-100 text-cyan-800 dark:bg-cyan-900/50 dark:text-cyan-200"];
+              return (
+                <div key={module} className={`rounded-xl px-3 py-2 text-sm font-medium ${pills[i % pills.length]}`}>
+                  {module}
+                </div>
+              );
+            })}
           </div>
         </section>
       </section>

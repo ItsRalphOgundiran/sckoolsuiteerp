@@ -1,7 +1,7 @@
 export function DashboardLoadingSkeleton() {
   return (
     <div className="glass-bg min-h-screen p-4">
-      <div className="mx-auto max-w-[1440px] space-y-4">
+      <div className="w-full space-y-4">
         <div className="h-28 animate-pulse rounded-2xl bg-white/70" />
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {Array.from({ length: 8 }).map((_, index) => (

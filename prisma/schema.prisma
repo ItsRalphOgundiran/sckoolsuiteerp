@@ -68,6 +68,8 @@ model School {
   attendance    Attendance[]
   lessons       Lesson[]
   assignments   Assignment[]
+  quizzes       Quiz[]
+  onlineClasses OnlineClass[]
   announcements Announcement[]
   settings      SchoolSetting[]
 }
@@ -149,6 +151,8 @@ model Teacher {
   scores    Score[]
   attendance Attendance[]
   assignments Assignment[]
+  quizzes   Quiz[]
+  onlineClasses OnlineClass[]
 }
 
 model Student {
@@ -195,6 +199,8 @@ model Class {
   attendance   Attendance[]
   lessons      Lesson[]
   assignments  Assignment[]
+  quizzes      Quiz[]
+  onlineClasses OnlineClass[]
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -215,6 +221,8 @@ model Subject {
   lessons   Lesson[]
   scores    Score[]
   assignments Assignment[]
+  quizzes   Quiz[]
+  onlineClasses OnlineClass[]
 
   @@unique([schoolId, name])
 }
@@ -455,6 +463,43 @@ model Assignment {
   submissionNote  String?
   submittedAt     DateTime?
   createdAt       DateTime    @default(now())
+}
+
+model Quiz {
+  id          String      @id @default(cuid())
+  schoolId    String
+  school      School      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  classId     String?
+  class       Class?      @relation(fields: [classId], references: [id], onDelete: SetNull)
+  subjectId   String?
+  subject     Subject?    @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  teacherId   String
+  teacher     Teacher     @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  title       String
+  instruction String?
+  totalMarks  Float       @default(100)
+  dueDate     DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model OnlineClass {
+  id          String      @id @default(cuid())
+  schoolId    String
+  school      School      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  classId     String?
+  class       Class?      @relation(fields: [classId], references: [id], onDelete: SetNull)
+  subjectId   String?
+  subject     Subject?    @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  teacherId   String
+  teacher     Teacher     @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  title       String
+  platform    String?
+  meetingLink String?
+  startTime   DateTime
+  endTime     DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 }
 
 model Announcement {

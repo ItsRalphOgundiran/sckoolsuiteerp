@@ -48,15 +48,15 @@ h4 {
 
 .glass-panel {
   border: 1px solid rgba(255, 255, 255, 0.65);
-  background: rgba(255, 255, 255, 0.68);
+  background: rgba(255, 255, 255, 0.82);
   backdrop-filter: blur(10px);
   box-shadow: 0 14px 40px rgba(15, 23, 42, 0.1);
 }
 
 .dark .glass-panel {
-  border: 1px solid rgba(51, 65, 85, 0.8);
-  background: rgba(15, 23, 42, 0.68);
-  box-shadow: 0 14px 40px rgba(2, 6, 23, 0.45);
+  border: 1px solid rgba(71, 95, 140, 0.55);
+  background: rgba(22, 36, 71, 0.75);
+  box-shadow: 0 14px 40px rgba(2, 6, 23, 0.5);
 }
 
 .glass-soft {
@@ -65,8 +65,8 @@ h4 {
 }
 
 .dark .glass-soft {
-  border: 1px solid rgba(51, 65, 85, 0.9);
-  background: rgba(15, 23, 42, 0.82);
+  border: 1px solid rgba(71, 95, 140, 0.5);
+  background: rgba(22, 36, 71, 0.65);
 }
 
 .metric-chip {
