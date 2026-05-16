@@ -1,0 +1,107 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f3f5f8;
+  --foreground: #111827;
+  --brand-primary: #0b1f4d;
+  --brand-secondary: #0e9f6e;
+}
+
+.dark {
+  --background: #0a1327;
+  --foreground: #e2e8f0;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-body);
+  --font-mono: var(--font-body);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body), sans-serif;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display), sans-serif;
+}
+
+.glass-bg {
+  background:
+    radial-gradient(circle at 8% 12%, rgba(127, 91, 255, 0.16), transparent 32%),
+    radial-gradient(circle at 86% 0%, rgba(50, 133, 255, 0.16), transparent 35%),
+    #eef1f6;
+}
+
+.dark .glass-bg {
+  background:
+    radial-gradient(circle at 8% 12%, rgba(30, 64, 175, 0.35), transparent 32%),
+    radial-gradient(circle at 86% 0%, rgba(16, 185, 129, 0.2), transparent 35%),
+    #0b1224;
+}
+
+.glass-panel {
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  background: rgba(255, 255, 255, 0.68);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 14px 40px rgba(15, 23, 42, 0.1);
+}
+
+.dark .glass-panel {
+  border: 1px solid rgba(51, 65, 85, 0.8);
+  background: rgba(15, 23, 42, 0.68);
+  box-shadow: 0 14px 40px rgba(2, 6, 23, 0.45);
+}
+
+.glass-soft {
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.dark .glass-soft {
+  border: 1px solid rgba(51, 65, 85, 0.9);
+  background: rgba(15, 23, 42, 0.82);
+}
+
+.metric-chip {
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  background: rgba(255, 255, 255, 0.72);
+  border-radius: 12px;
+  padding: 0.6rem 0.75rem;
+}
+
+.print-sheet {
+  width: 210mm;
+  min-height: 297mm;
+  margin: 0 auto;
+  background: white;
+}
+
+@media print {
+  html,
+  body {
+    background: #fff !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-sheet {
+    width: 100%;
+    min-height: auto;
+    box-shadow: none;
+    margin: 0;
+  }
+
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+}
