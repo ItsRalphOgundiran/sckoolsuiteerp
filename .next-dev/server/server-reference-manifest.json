@@ -1,0 +1,72 @@
+{
+  "node": {
+    "003fee60b77c4f2fde2d9085ab8cf6c887a8d5ad30": {
+      "workers": {
+        "app/admin/dashboard/page": {
+          "moduleId": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fralphmore%2FDocuments%2FGitHub%2Fsckoolsuiteerp%2Fsrc%2Fcomponents%2Fportal-shell.tsx%22%2C%5B%7B%22id%22%3A%22003fee60b77c4f2fde2d9085ab8cf6c887a8d5ad30%22%2C%22exportedName%22%3A%22%24%24RSC_SERVER_ACTION_0%22%2C%22filename%22%3A%22components%2Fportal-shell.tsx%22%7D%5D%5D%5D&__client_imported__=!",
+          "async": false
+        },
+        "app/admin/[section]/page": {
+          "moduleId": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fralphmore%2FDocuments%2FGitHub%2Fsckoolsuiteerp%2Fsrc%2Fcomponents%2Fportal-shell.tsx%22%2C%5B%7B%22id%22%3A%22003fee60b77c4f2fde2d9085ab8cf6c887a8d5ad30%22%2C%22exportedName%22%3A%22%24%24RSC_SERVER_ACTION_0%22%2C%22filename%22%3A%22components%2Fportal-shell.tsx%22%7D%5D%5D%5D&__client_imported__=!",
+          "async": false
+        },
+        "app/admin/settings/page": {
+          "moduleId": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fralphmore%2FDocuments%2FGitHub%2Fsckoolsuiteerp%2Fsrc%2Fcomponents%2Fportal-shell.tsx%22%2C%5B%7B%22id%22%3A%22003fee60b77c4f2fde2d9085ab8cf6c887a8d5ad30%22%2C%22exportedName%22%3A%22%24%24RSC_SERVER_ACTION_0%22%2C%22filename%22%3A%22components%2Fportal-shell.tsx%22%7D%5D%5D%5D&__client_imported__=!",
+          "async": false
+        },
+        "app/admin/settings/branding/page": {
+          "moduleId": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fralphmore%2FDocuments%2FGitHub%2Fsckoolsuiteerp%2Fsrc%2Fcomponents%2Fportal-shell.tsx%22%2C%5B%7B%22id%22%3A%22003fee60b77c4f2fde2d9085ab8cf6c887a8d5ad30%22%2C%22exportedName%22%3A%22%24%24RSC_SERVER_ACTION_0%22%2C%22filename%22%3A%22components%2Fportal-shell.tsx%22%7D%5D%5D%5D&__client_imported__=!",
+          "async": false
+        },
+        "app/admin/settings/academic-calendar/page": {
+          "moduleId": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fralphmore%2FDocuments%2FGitHub%2Fsckoolsuiteerp%2Fsrc%2Fcomponents%2Fportal-shell.tsx%22%2C%5B%7B%22id%22%3A%22003fee60b77c4f2fde2d9085ab8cf6c887a8d5ad30%22%2C%22exportedName%22%3A%22%24%24RSC_SERVER_ACTION_0%22%2C%22filename%22%3A%22components%2Fportal-shell.tsx%22%7D%5D%5D%5D&__client_imported__=!",
+          "async": false
+        },
+        "app/admin/settings/config-engine/page": {
+          "moduleId": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fralphmore%2FDocuments%2FGitHub%2Fsckoolsuiteerp%2Fsrc%2Fcomponents%2Fportal-shell.tsx%22%2C%5B%7B%22id%22%3A%22003fee60b77c4f2fde2d9085ab8cf6c887a8d5ad30%22%2C%22exportedName%22%3A%22%24%24RSC_SERVER_ACTION_0%22%2C%22filename%22%3A%22components%2Fportal-shell.tsx%22%7D%5D%5D%5D&__client_imported__=!",
+          "async": false
+        },
+        "app/parent/dashboard/page": {
+          "moduleId": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fralphmore%2FDocuments%2FGitHub%2Fsckoolsuiteerp%2Fsrc%2Fcomponents%2Fportal-shell.tsx%22%2C%5B%7B%22id%22%3A%22003fee60b77c4f2fde2d9085ab8cf6c887a8d5ad30%22%2C%22exportedName%22%3A%22%24%24RSC_SERVER_ACTION_0%22%2C%22filename%22%3A%22components%2Fportal-shell.tsx%22%7D%5D%5D%5D&__client_imported__=!",
+          "async": false
+        },
+        "app/parent/[section]/page": {
+          "moduleId": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fralphmore%2FDocuments%2FGitHub%2Fsckoolsuiteerp%2Fsrc%2Fcomponents%2Fportal-shell.tsx%22%2C%5B%7B%22id%22%3A%22003fee60b77c4f2fde2d9085ab8cf6c887a8d5ad30%22%2C%22exportedName%22%3A%22%24%24RSC_SERVER_ACTION_0%22%2C%22filename%22%3A%22components%2Fportal-shell.tsx%22%7D%5D%5D%5D&__client_imported__=!",
+          "async": false
+        },
+        "app/parent/children/[childId]/page": {
+          "moduleId": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fralphmore%2FDocuments%2FGitHub%2Fsckoolsuiteerp%2Fsrc%2Fcomponents%2Fportal-shell.tsx%22%2C%5B%7B%22id%22%3A%22003fee60b77c4f2fde2d9085ab8cf6c887a8d5ad30%22%2C%22exportedName%22%3A%22%24%24RSC_SERVER_ACTION_0%22%2C%22filename%22%3A%22components%2Fportal-shell.tsx%22%7D%5D%5D%5D&__client_imported__=!",
+          "async": false
+        }
+      },
+      "layer": {
+        "app/admin/dashboard/page": "rsc",
+        "app/admin/[section]/page": "rsc",
+        "app/admin/settings/page": "rsc",
+        "app/admin/settings/branding/page": "rsc",
+        "app/admin/settings/academic-calendar/page": "rsc",
+        "app/admin/settings/config-engine/page": "rsc",
+        "app/parent/dashboard/page": "rsc",
+        "app/parent/[section]/page": "rsc",
+        "app/parent/children/[childId]/page": "rsc"
+      },
+      "filename": "components/portal-shell.tsx",
+      "exportedName": "$$RSC_SERVER_ACTION_0"
+    },
+    "408ff60a9bd13b94075fb8b06d8cfb692f8d014787": {
+      "workers": {
+        "app/login/page": {
+          "moduleId": "(action-browser)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fralphmore%2FDocuments%2FGitHub%2Fsckoolsuiteerp%2Fsrc%2Fapp%2Flogin%2Factions.ts%22%2C%5B%7B%22id%22%3A%22408ff60a9bd13b94075fb8b06d8cfb692f8d014787%22%2C%22exportedName%22%3A%22loginAction%22%2C%22filename%22%3A%22app%2Flogin%2Factions.ts%22%7D%5D%5D%5D&__client_imported__=true!",
+          "async": false
+        }
+      },
+      "layer": {
+        "app/login/page": "action-browser"
+      },
+      "filename": "app/login/actions.ts",
+      "exportedName": "loginAction"
+    }
+  },
+  "edge": {},
+  "encryptionKey": "bVODdu16g54NqEGlNpG4EPet9GasYA7yYcOO4Qs3es4="
+}

@@ -66,6 +66,9 @@ export default async function AccountantSectionPage({ params }: { params: Promis
   const outstanding = core.invoices.reduce((sum: number, item: { balance?: number }) => sum + (item.balance || 0), 0 as number);
   const debtors = core.invoices.filter((item: { balance: number }) => item.balance > 0);
   const canonical = aliases[section as AllowedSection];
+  type InvoiceRow = (typeof core.invoices)[number];
+  type PaymentRow = (typeof core.payments)[number];
+  type FeeItemRow = (typeof core.feeItems)[number];
 
   function renderSection() {
     switch (canonical) {
@@ -74,7 +77,7 @@ export default async function AccountantSectionPage({ params }: { params: Promis
           <Card>
             <CardHeader><CardTitle>Fee Setup</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">
-               {core.feeItems.length ? core.feeItems.map((item: { id: string; name: string; amount: number; class?: { name: string } }) => (
+               {core.feeItems.length ? core.feeItems.map((item: FeeItemRow) => (
                 <div key={item.id} className="glass-soft rounded-xl p-3">
                   <p className="font-medium">{item.name}</p>
                   <p>Amount: {naira(item.amount)} • Class: {item.class?.name ?? "All"}</p>
@@ -88,7 +91,7 @@ export default async function AccountantSectionPage({ params }: { params: Promis
           <Card>
             <CardHeader><CardTitle>Invoice Ledger</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">
-                {core.invoices.slice(0, 30).map((item: any) => (
+                {core.invoices.slice(0, 30).map((item: InvoiceRow) => (
                 <div key={item.id} className="glass-soft rounded-xl p-3">
                   <p className="font-medium">{item.invoiceNumber}</p>
                   <p>{item.student.user.name} • Total: {naira(item.totalAmount)} • Balance: {naira(item.balance)}</p>
@@ -104,7 +107,7 @@ export default async function AccountantSectionPage({ params }: { params: Promis
           <Card>
             <CardHeader><CardTitle>Payment Activity</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">
-                {core.payments.slice(0, 30).map((item: any) => (
+                {core.payments.slice(0, 30).map((item: PaymentRow) => (
                 <div key={item.id} className="glass-soft rounded-xl p-3">
                   <p className="font-medium">{item.invoice?.invoiceNumber ?? `Payment ${item.id.slice(0, 8)}`}</p>
                   <p>{naira(item.amount)} via {item.method}</p>
@@ -120,7 +123,7 @@ export default async function AccountantSectionPage({ params }: { params: Promis
           <Card>
             <CardHeader><CardTitle>Issued Receipts</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">
-                {core.invoices.filter((item: any) => item.receipt).slice(0, 30).map((item: any) => (
+                {core.invoices.filter((item: InvoiceRow) => item.receipt).slice(0, 30).map((item: InvoiceRow) => (
                 <div key={item.id} className="glass-soft rounded-xl p-3">
                   <p className="font-medium">{item.invoiceNumber}</p>
                   <p>Student: {item.student.user.name} • Paid: {naira(item.amountPaid)}</p>
@@ -136,7 +139,7 @@ export default async function AccountantSectionPage({ params }: { params: Promis
           <Card>
             <CardHeader><CardTitle>Debtors</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">
-                {debtors.slice(0, 30).map((item: any) => (
+                {debtors.slice(0, 30).map((item: InvoiceRow) => (
                 <div key={item.id} className="glass-soft rounded-xl p-3">
                   <p className="font-medium">{item.student.user.name}</p>
                   <p>Invoice: {item.invoiceNumber} • Outstanding: {naira(item.balance)}</p>

@@ -72,6 +72,7 @@ model School {
   onlineClasses OnlineClass[]
   announcements Announcement[]
   settings      SchoolSetting[]
+  configVersions SchoolConfigVersion[]
 }
 
 model SchoolBranding {
@@ -121,6 +122,25 @@ model User {
   teacher    Teacher?
   createdInv Invoice[] @relation("InvoiceCreatedBy")
   payments   Payment[] @relation("PaymentReceivedBy")
+  createdConfigVersions SchoolConfigVersion[] @relation("SchoolConfigCreatedBy")
+}
+
+model SchoolConfigVersion {
+  id          String   @id @default(cuid())
+  schoolId    String
+  school      School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  version     Int
+  isActive    Boolean  @default(false)
+  source      String   @default("manual")
+  notes       String?
+  config      Json
+  createdById String?
+  createdBy   User?    @relation("SchoolConfigCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([schoolId, version])
+  @@index([schoolId, isActive])
 }
 
 model Parent {

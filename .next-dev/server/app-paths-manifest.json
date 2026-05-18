@@ -1,0 +1,8 @@
+{
+  "/api/context/session-term/route": "app/api/context/session-term/route.js",
+  "/parent/dashboard/page": "app/parent/dashboard/page.js",
+  "/page": "app/page.js",
+  "/parent/children/[childId]/page": "app/parent/children/[childId]/page.js",
+  "/reports/[studentId]/page": "app/reports/[studentId]/page.js",
+  "/parent/[section]/page": "app/parent/[section]/page.js"
+}

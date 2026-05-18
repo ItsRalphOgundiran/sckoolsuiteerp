@@ -1,5 +1,5 @@
 export const APP_NAME = "Sckool Suite";
-export const APP_POWERED_BY = "Powered by Sckool Suite";
+export const APP_POWERED_BY = "Skcool Suite - A product of Avario Digitals.";
 
 export const demoCredentials = [
   { role: "Admin", email: "admin@sckoolsuite.com", password: "password123" },

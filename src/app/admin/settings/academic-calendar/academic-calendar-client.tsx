@@ -220,11 +220,7 @@ export function AcademicCalendarClient({
                   <option key={session.id} value={session.id}>{session.name}</option>
                 ))}
               </select>
-              <select name="name" className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
-                <option>First Term</option>
-                <option>Second Term</option>
-                <option>Third Term</option>
-              </select>
+              <Input name="name" placeholder="Term name (e.g. Harmattan, Spring, Term 1)" required />
               <div className="grid grid-cols-2 gap-2">
                 <Input name="startDate" type="date" />
                 <Input name="endDate" type="date" />

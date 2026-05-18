@@ -57,6 +57,8 @@ export async function getCoreSchoolDataByContext(schoolId: string, context?: { s
 
   const attendanceWhere = {
     schoolId,
+    ...(context?.sessionId ? { sessionId: context.sessionId } : {}),
+    ...(context?.termId ? { termId: context.termId } : {}),
   };
 
   const [

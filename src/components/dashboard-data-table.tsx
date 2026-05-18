@@ -52,7 +52,7 @@ export function DashboardDataTable({
   return (
     <div className="glass-panel rounded-2xl p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-base font-semibold text-slate-900">{title}</h3>
+        <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">{title}</h3>
         <div className="flex flex-wrap gap-2">
           <Input
             value={query}
@@ -64,7 +64,7 @@ export function DashboardDataTable({
             className="h-8 w-44"
           />
           <select
-            className="h-8 rounded-md border border-slate-300 bg-white px-2 text-xs"
+            className="h-8 rounded-md border border-slate-300 bg-white px-2 text-xs dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
             value={status}
             onChange={(event) => {
               setStatus(event.target.value);
@@ -95,8 +95,8 @@ export function DashboardDataTable({
               {paginated.map((row) => (
                 <TableRow key={row.id}>
                   <TableCell>
-                    <p className="font-medium text-slate-900">{row.primary}</p>
-                    <p className="text-xs text-slate-500">{row.secondary ?? "-"}</p>
+                    <p className="font-medium text-slate-900 dark:text-slate-100">{row.primary}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{row.secondary ?? "-"}</p>
                   </TableCell>
                   <TableCell>{row.status ?? "-"}</TableCell>
                   <TableCell>{row.amount ?? "-"}</TableCell>
@@ -107,17 +107,17 @@ export function DashboardDataTable({
           </Table>
         </div>
       ) : (
-        <div className="rounded-xl border border-dashed border-slate-300 bg-white/60 p-6 text-center text-sm text-slate-500">{emptyMessage}</div>
+        <div className="rounded-xl border border-dashed border-slate-300 bg-white/60 p-6 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-400">{emptyMessage}</div>
       )}
 
-      <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
+      <div className="mt-3 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
         <span>
           Showing {paginated.length} of {filtered.length}
         </span>
         <div className="flex items-center gap-1">
           <button
             type="button"
-            className="rounded-md border border-slate-300 px-2 py-1 disabled:opacity-40"
+            className="rounded-md border border-slate-300 px-2 py-1 disabled:opacity-40 dark:border-slate-700 dark:text-slate-200"
             disabled={page <= 1}
             onClick={() => setPage((value) => Math.max(1, value - 1))}
           >
@@ -128,7 +128,7 @@ export function DashboardDataTable({
           </span>
           <button
             type="button"
-            className="rounded-md border border-slate-300 px-2 py-1 disabled:opacity-40"
+            className="rounded-md border border-slate-300 px-2 py-1 disabled:opacity-40 dark:border-slate-700 dark:text-slate-200"
             disabled={page >= totalPages}
             onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
           >

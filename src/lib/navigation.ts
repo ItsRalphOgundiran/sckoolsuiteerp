@@ -18,6 +18,7 @@ export type NavItem = {
   label: string;
   href: string;
   icon: LucideIcon;
+  group?: string;
 };
 
 export const navByRole: Record<string, NavItem[]> = {
@@ -25,25 +26,26 @@ export const navByRole: Record<string, NavItem[]> = {
     { label: "Dashboard", href: "/super-admin/dashboard", icon: LayoutDashboard },
   ],
   SCHOOL_ADMIN: [
-    { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
-    { label: "Students", href: "/admin/students", icon: Users },
-    { label: "Parents", href: "/admin/parents", icon: Users },
-    { label: "Teachers", href: "/admin/teachers", icon: GraduationCap },
-    { label: "Classes", href: "/admin/classes", icon: Building2 },
-    { label: "Subjects", href: "/admin/subjects", icon: BookOpen },
-    { label: "Fees", href: "/admin/fees", icon: CreditCard },
-    { label: "Invoices", href: "/admin/invoices", icon: Receipt },
-    { label: "Payments", href: "/admin/payments", icon: CreditCard },
-    { label: "Results", href: "/admin/results", icon: FileBarChart },
-    { label: "Report Cards", href: "/admin/results", icon: FileBarChart },
-    { label: "Timetable", href: "/admin/classes", icon: CalendarCheck },
-    { label: "LMS", href: "/admin/lms", icon: BookOpen },
-    { label: "Attendance", href: "/admin/attendance", icon: CalendarCheck },
-    { label: "Messages", href: "/admin/announcements", icon: Megaphone },
-    { label: "Announcements", href: "/admin/announcements", icon: Megaphone },
-    { label: "Settings", href: "/admin/settings", icon: Settings },
-    { label: "Academic Calendar", href: "/admin/settings/academic-calendar", icon: CalendarCheck },
-    { label: "Branding", href: "/admin/settings/branding", icon: Settings },
+    { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard, group: "1. Admin" },
+    { label: "Reception", href: "/admin/reception", icon: Users, group: "1. Admin" },
+    { label: "Students", href: "/admin/students", icon: Users, group: "1. Admin" },
+    { label: "Parents", href: "/admin/parents", icon: Users, group: "1. Admin" },
+    { label: "Teachers", href: "/admin/teachers", icon: GraduationCap, group: "1. Admin" },
+    { label: "Driver & Transport", href: "/admin/transport", icon: Building2, group: "1. Admin" },
+    { label: "Finance", href: "/admin/finance", icon: CreditCard, group: "2. Finance" },
+    { label: "Fee Group & Structure", href: "/admin/fees", icon: CreditCard, group: "2. Finance" },
+    { label: "Invoices", href: "/admin/invoices", icon: Receipt, group: "2. Finance" },
+    { label: "Payments", href: "/admin/payments", icon: CreditCard, group: "2. Finance" },
+    { label: "Academics", href: "/admin/academics", icon: BookOpen, group: "3. Academics" },
+    { label: "Classes & Arms", href: "/admin/classes", icon: Building2, group: "3. Academics" },
+    { label: "Subjects", href: "/admin/subjects", icon: BookOpen, group: "3. Academics" },
+    { label: "Attendance", href: "/admin/attendance", icon: CalendarCheck, group: "3. Academics" },
+    { label: "Results", href: "/admin/results", icon: FileBarChart, group: "3. Academics" },
+    { label: "LMS", href: "/admin/lms", icon: BookOpen, group: "3. Academics" },
+    { label: "Communication", href: "/admin/announcements", icon: Megaphone, group: "4. Communication" },
+    { label: "Settings", href: "/admin/settings", icon: Settings, group: "5. System" },
+    { label: "Academic Calendar", href: "/admin/settings/academic-calendar", icon: CalendarCheck, group: "5. System" },
+    { label: "Branding", href: "/admin/settings/branding", icon: Settings, group: "5. System" },
   ],
   PRINCIPAL: [
     { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },

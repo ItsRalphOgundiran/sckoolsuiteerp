@@ -35,6 +35,9 @@ export default async function SettingsPage() {
           <CardTitle>School Settings</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-2">
+          <Link href="/admin/settings/config-engine" className="glass-soft rounded-xl p-4 text-sm text-slate-700 hover:bg-white">
+            Dynamic Configuration Engine
+          </Link>
           <Link href="/admin/settings/branding" className="glass-soft rounded-xl p-4 text-sm text-slate-700 hover:bg-white">
             Branding & Print Templates
           </Link>

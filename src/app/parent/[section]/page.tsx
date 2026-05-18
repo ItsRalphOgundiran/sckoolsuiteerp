@@ -125,7 +125,12 @@ export default async function ParentSectionPage({ params }: { params: Promise<{ 
 
   const [results, receipts] = await Promise.all([
     prisma.result.findMany({
-      where: { schoolId: profile.schoolId, studentId: { in: Array.from(childIds) } },
+      where: {
+        schoolId: profile.schoolId,
+        studentId: { in: Array.from(childIds) },
+        ...(context.session?.id ? { sessionId: context.session.id } : {}),
+        ...(context.term?.id ? { termId: context.term.id } : {}),
+      },
       include: { student: { include: { user: true, class: true } }, term: true, session: true },
       orderBy: { createdAt: "desc" },
     }),
@@ -341,7 +346,7 @@ export default async function ParentSectionPage({ params }: { params: Promise<{ 
                         <p className="text-xs text-slate-500">Adm: {child.id.slice(0, 10).toUpperCase()}</p>
                       </div>
                     </div>
-                    <Link href={`/reports/${child.id}`} className="rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800">
+                    <Link href={`/parent/children/${child.id}`} className="rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800">
                       View more
                     </Link>
                   </div>
@@ -360,10 +365,10 @@ export default async function ParentSectionPage({ params }: { params: Promise<{ 
                   </details>
 
                   <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                    <Link href={`/reports/${child.id}`} className="rounded-md border border-slate-300 px-3 py-1.5 hover:bg-white">View Report</Link>
-                    <Link href="/parent/fees" className="rounded-md border border-slate-300 px-3 py-1.5 hover:bg-white">View Fees</Link>
-                    <Link href="/parent/lms" className="rounded-md border border-slate-300 px-3 py-1.5 hover:bg-white">View Lessons</Link>
-                    <Link href="/parent/attendance" className="rounded-md border border-slate-300 px-3 py-1.5 hover:bg-white">View Attendance</Link>
+                    <Link href={`/parent/children/${child.id}#results`} className="rounded-md border border-slate-300 px-3 py-1.5 hover:bg-white">View Report</Link>
+                    <Link href={`/parent/children/${child.id}#fees`} className="rounded-md border border-slate-300 px-3 py-1.5 hover:bg-white">View Fees</Link>
+                    <Link href={`/parent/children/${child.id}#lessons`} className="rounded-md border border-slate-300 px-3 py-1.5 hover:bg-white">View Lessons</Link>
+                    <Link href={`/parent/children/${child.id}#attendance`} className="rounded-md border border-slate-300 px-3 py-1.5 hover:bg-white">View Attendance</Link>
                   </div>
                 </CardContent>
               </Card>
@@ -511,7 +516,7 @@ export default async function ParentSectionPage({ params }: { params: Promise<{ 
           return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;
         }
 
-        const statusByDay = new Map<string, "PRESENT" | "LATE" | "ABSENT">();
+        const statusByDay = new Map<string, "PRESENT" | "LATE" | "ABSENT" | "EXCUSED">();
         for (const row of attendance) {
           const key = dateKey(new Date(row.date));
           const current = statusByDay.get(key);
