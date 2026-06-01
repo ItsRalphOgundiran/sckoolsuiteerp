@@ -5,7 +5,10 @@ import { SetupRequiredScreen } from "@/components/setup-required-screen";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireRole } from "@/lib/auth-guards";
 import { getCoreSchoolDataByContext, getCurrentSchoolByUser, getUserAcademicContext } from "@/lib/data";
-import { formatDate } from "@/lib/utils";
+import { calculateGradeFromBands } from "@/lib/grades";
+import { prisma } from "@/lib/prisma";
+import { getActiveSchoolConfig } from "@/lib/school-config";
+import { formatDate, humanizeEnum } from "@/lib/utils";
 
 const allowed = ["profile", "subjects", "timetable", "assignments", "attendance", "lms", "results", "report-card", "announcements"] as const;
 
@@ -49,6 +52,7 @@ export default async function StudentSectionPage({ params }: { params: Promise<{
   }
 
   const context = await getUserAcademicContext(profile.schoolId, user.id);
+  const schoolId = profile.schoolId;
   const core = await getCoreSchoolDataByContext(profile.schoolId, {
     sessionId: context.session?.id,
     termId: context.term?.id,
@@ -90,10 +94,44 @@ export default async function StudentSectionPage({ params }: { params: Promise<{
   const myAssignments = core.assignments.filter((assignment) => assignment.studentId === student.id);
   const myAttendance = core.attendance.filter((attendance) => attendance.studentId === student.id);
   const myScores = core.scores.filter((score) => score.studentId === student.id);
+  const approvedResult = await (async () => {
+    const whereBase = {
+      schoolId,
+      studentId: student.id,
+      ...(context.session?.id ? { sessionId: context.session.id } : {}),
+      ...(context.term?.id ? { termId: context.term.id } : {}),
+    };
+
+    try {
+      return await prisma.result.findFirst({
+        where: {
+          ...whereBase,
+          status: { in: ["PUBLISHED"] },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      if (!message.includes("Unknown argument `status`")) {
+        throw error;
+      }
+
+      return null;
+    }
+  })();
+
+  const activeConfig = core.school ? await getActiveSchoolConfig(core.school.id) : null;
+  const gradingBands = (activeConfig?.config.academic.gradingSystem ?? []).map((band) => ({
+    min: Number(band.min),
+    grade: band.grade,
+    gpa: Number(band.gpa),
+  }));
 
   const pendingAssignments = myAssignments.filter((assignment) => !assignment.submittedAt).length;
   const presentCount = myAttendance.filter((item) => item.status === "PRESENT").length;
   const avgScore = myScores.length ? myScores.reduce((sum, score) => sum + score.total, 0) / myScores.length : 0;
+  const topScore = myScores.length ? [...myScores].sort((a, b) => b.total - a.total)[0] : null;
+  const topScoreMeta = topScore ? calculateGradeFromBands(topScore.total, gradingBands) : null;
 
   function renderSection() {
     switch (sectionKey) {
@@ -175,7 +213,7 @@ export default async function StudentSectionPage({ params }: { params: Promise<{
               <p>Present days: {presentCount} / {myAttendance.length}</p>
               {myAttendance.slice(0, 20).map((item) => (
                 <div key={item.id} className="glass-soft rounded-xl p-3">
-                  <p className="font-medium">{item.status}</p>
+                  <p className="font-medium">{humanizeEnum(item.status)}</p>
                   <p>{formatDate(item.date)} • Class: {item.class?.name ?? "-"}</p>
                 </div>
               ))}
@@ -221,7 +259,7 @@ export default async function StudentSectionPage({ params }: { params: Promise<{
                 </div>
                 <div className="rounded-xl border border-violet-200 bg-violet-50 p-3">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">Top Grade</p>
-                  <p className="mt-1 text-xl font-extrabold text-slate-900">{myScores.length ? [...myScores].sort((a, b) => b.total - a.total)[0].grade : "-"}</p>
+                  <p className="mt-1 text-xl font-extrabold text-slate-900">{topScoreMeta?.grade ?? "-"}</p>
                 </div>
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">Top Score</p>
@@ -229,7 +267,7 @@ export default async function StudentSectionPage({ params }: { params: Promise<{
                 </div>
               </div>
 
-              {myScores.length ? (
+              {approvedResult && myScores.length ? (
                 <div className="overflow-hidden rounded-xl border border-slate-200">
                   <div className="border-b border-slate-200 bg-slate-50 px-3 py-2">
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">Subject Performance</p>
@@ -250,8 +288,8 @@ export default async function StudentSectionPage({ params }: { params: Promise<{
                           <tr key={score.id} className={idx % 2 ? "bg-white" : "bg-slate-50/70"}>
                             <td className="px-3 py-2 font-medium text-slate-800">{score.subject.name}</td>
                             <td className="px-3 py-2 text-right font-semibold text-slate-900">{score.total.toFixed(1)}%</td>
-                            <td className="px-3 py-2 text-right"><span className="rounded-full bg-slate-900 px-2 py-0.5 text-[11px] font-semibold text-white">{score.grade}</span></td>
-                            <td className="px-3 py-2 text-right text-slate-700">{score.gpa.toFixed(2)}</td>
+                            <td className="px-3 py-2 text-right"><span className="rounded-full bg-slate-900 px-2 py-0.5 text-[11px] font-semibold text-white">{calculateGradeFromBands(score.total, gradingBands).grade}</span></td>
+                            <td className="px-3 py-2 text-right text-slate-700">{calculateGradeFromBands(score.total, gradingBands).gpa.toFixed(2)}</td>
                             <td className="px-3 py-2">
                               <div className="h-2 rounded-full bg-slate-200">
                                 <div className="h-2 rounded-full bg-gradient-to-r from-[var(--brand-primary)] to-[var(--brand-secondary)]" style={{ width: `${Math.max(0, Math.min(100, score.total))}%` }} />
@@ -263,7 +301,7 @@ export default async function StudentSectionPage({ params }: { params: Promise<{
                     </table>
                   </div>
                 </div>
-              ) : <p className="text-sm text-slate-500">No results published yet.</p>}
+              ) : <p className="text-sm text-slate-500">No approved result has been published for this term yet.</p>}
             </CardContent>
           </Card>
         );
@@ -277,9 +315,13 @@ export default async function StudentSectionPage({ params }: { params: Promise<{
             <CardContent className="space-y-2 text-sm">
               <p>Session: {context.session?.name ?? "-"}</p>
               <p>Term: {context.term?.name ?? "-"}</p>
-              <Link href={`/reports/${student.id}`} className="inline-block text-[var(--brand-primary)] underline">
-                Open My Report Card
-              </Link>
+              {approvedResult ? (
+                <Link href={`/reports/${student.id}`} className="inline-block text-[var(--brand-primary)] underline">
+                  Open My Report Card
+                </Link>
+              ) : (
+                <p className="text-slate-500">Report card will be available once result is approved and published.</p>
+              )}
             </CardContent>
           </Card>
         );

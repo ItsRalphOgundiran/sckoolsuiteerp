@@ -13,7 +13,11 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
     where: { OR: [{ id }, { invoiceId: id }] },
     include: {
       school: { include: { branding: true } },
-      invoice: true,
+      invoice: {
+        include: {
+          items: { include: { feeItem: { include: { feeGroup: true } } } },
+        },
+      },
       student: { include: { user: true } },
       parent: { include: { user: true } },
     },
@@ -23,6 +27,16 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
 
   const brandPrimary = receipt.school.branding?.primaryColor ?? "#0B1F4D";
   const brandSecondary = receipt.school.branding?.secondaryColor ?? "#0E9F6E";
+  const groupedBreakdown = receipt.invoice.items.reduce<Record<string, Array<{ name: string; amount: number; optional: boolean }>>>(
+    (accumulator, item) => {
+      const key = item.feeItem.feeGroup?.name ?? item.feeItem.category;
+      const bucket = accumulator[key] ?? [];
+      bucket.push({ name: item.feeItem.name, amount: item.amount, optional: item.feeItem.isOptional });
+      accumulator[key] = bucket;
+      return accumulator;
+    },
+    {}
+  );
 
   return (
     <div className="p-4" style={{ "--brand-primary": brandPrimary, "--brand-secondary": brandSecondary } as Record<string, string>}>
@@ -55,7 +69,7 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
               <p className="font-semibold text-slate-900">{receipt.parent?.user.name ?? "-"}</p>
             </div>
             <div className="rounded-xl border border-slate-200 p-3">
-              <p className="text-xs uppercase tracking-wide text-slate-500">Invoice Reference</p>
+              <p className="text-xs uppercase tracking-wide text-slate-500">Bill Reference</p>
               <p className="font-semibold text-slate-900">{receipt.invoice.invoiceNumber}</p>
             </div>
           </div>
@@ -80,9 +94,28 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
             </div>
           </div>
 
+          <div className="rounded-xl border border-slate-200 p-4">
+            <p className="mb-3 text-sm font-semibold">Linked Invoice Breakdown</p>
+            <div className="space-y-3">
+              {Object.entries(groupedBreakdown).map(([groupName, rows]) => (
+                <div key={`receipt-group-${groupName}`} className="rounded-lg border border-slate-200">
+                  <div className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-700">{groupName}</div>
+                  <div className="divide-y divide-slate-100">
+                    {rows.map((row) => (
+                      <div key={`receipt-row-${groupName}-${row.name}`} className="flex items-center justify-between px-3 py-2 text-sm">
+                        <span>{row.name}{row.optional ? " (Optional)" : ""}</span>
+                        <strong>{naira(row.amount)}</strong>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-4 text-xs text-slate-600">
-            <div className="rounded-xl border p-3">Signature: {receipt.school.branding?.teacherSignature ?? "Signature Placeholder"}</div>
-            <div className="rounded-xl border p-3">Stamp: {receipt.school.branding?.schoolStamp ?? "Stamp Placeholder"}</div>
+            <div className="rounded-xl border p-3">Signature: {receipt.school.branding?.teacherSignature ?? "Not on file"}</div>
+            <div className="rounded-xl border p-3">Stamp: {receipt.school.branding?.schoolStamp ?? "Not on file"}</div>
           </div>
 
           <p className="text-right text-xs text-slate-500">{APP_POWERED_BY}</p>

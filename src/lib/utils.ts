@@ -23,3 +23,12 @@ export function formatDate(input: Date | string | null | undefined) {
     dateStyle: "medium",
   }).format(date);
 }
+
+export function humanizeEnum(value: string | null | undefined) {
+  if (!value) return "-";
+  return value
+    .toLowerCase()
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}

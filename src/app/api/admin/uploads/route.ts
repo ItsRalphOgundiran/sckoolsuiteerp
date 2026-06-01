@@ -10,6 +10,16 @@ function sanitizeFileName(fileName: string) {
   return fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
 }
 
+function sanitizeFolderPath(input: string) {
+  return input
+    .split("/")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => part.replace(/[^a-zA-Z0-9_-]/g, ""))
+    .filter(Boolean)
+    .join("/");
+}
+
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user || !["SCHOOL_ADMIN", "PRINCIPAL"].includes(session.user.role)) {
@@ -22,6 +32,7 @@ export async function POST(request: Request) {
 
   const formData = await request.formData();
   const file = formData.get("file");
+  const folder = sanitizeFolderPath(String(formData.get("folder") ?? ""));
 
   if (!(file instanceof File)) {
     return NextResponse.json({ error: "File is required" }, { status: 400 });
@@ -37,7 +48,9 @@ export async function POST(request: Request) {
 
   const safeName = sanitizeFileName(file.name);
   const fileName = `${Date.now()}-${safeName}`;
-  const relativeDir = path.join("uploads", session.user.schoolId);
+  const relativeDir = folder
+    ? path.join("uploads", session.user.schoolId, folder)
+    : path.join("uploads", session.user.schoolId);
   const absoluteDir = path.join(process.cwd(), "public", relativeDir);
   const absolutePath = path.join(absoluteDir, fileName);
 

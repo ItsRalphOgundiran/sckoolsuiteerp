@@ -1,0 +1,3 @@
+-- No-op migration.
+-- This migration was generated out-of-order during local development and has
+-- been intentionally neutralized to keep fresh database deployments stable.

@@ -1,10 +1,23 @@
 "use client";
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { Bell, ChevronDown, ChevronRight, Moon, Search, Sun } from "lucide-react";
+import { AlertTriangle, Bell, ChevronDown, ChevronRight, FileCheck2, Megaphone, MessageSquareText, Moon, Search, Sun } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { useRouter } from "next/navigation";
 
 const THEME_EVENT = "sckoolsuite-theme-change";
+
+type NotificationItem = {
+  id: string;
+  type: "announcement" | "message" | "complaint" | "contest";
+  title: string;
+  description: string;
+  audience: string;
+  createdAt: string;
+};
+
+type NotificationFilter = "all" | NotificationItem["type"];
+type DashboardScope = "superadmin" | "admin" | "accountant" | "parent" | "teacher" | "student" | "registrar";
 
 function getThemeSnapshot() {
   if (typeof window === "undefined") return "light";
@@ -31,9 +44,17 @@ export function PortalTopbar({
   pathname: string;
   userName: string;
 }) {
-  const [notifications] = useState(3);
+  const router = useRouter();
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [readNotificationIds, setReadNotificationIds] = useState<string[]>([]);
+  const [notificationError, setNotificationError] = useState("");
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [activeNotificationFilter, setActiveNotificationFilter] = useState<NotificationFilter>("all");
+  const [currentTimeMs, setCurrentTimeMs] = useState(() => Date.now());
   const theme = useSyncExternalStore(subscribeTheme, getThemeSnapshot, () => "light");
   const dark = theme === "dark";
+  const readStorageKey = useMemo(() => `notification-read-${pathname.split("/")[1] ?? "app"}-${userName}`.replaceAll(" ", "-"), [pathname, userName]);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", dark);
@@ -70,6 +91,239 @@ export function PortalTopbar({
 
   const systemStrength = 88;
   const systemStatus = systemStrength >= 85 ? "Operational" : systemStrength >= 65 ? "Stable" : "Attention";
+
+  const readNotificationSet = useMemo(() => new Set(readNotificationIds), [readNotificationIds]);
+  const unreadNotifications = useMemo(() => notifications.filter((item) => !readNotificationSet.has(item.id)), [notifications, readNotificationSet]);
+  const notificationCount = unreadNotifications.length;
+
+  const filteredNotifications = useMemo(() => {
+    if (activeNotificationFilter === "all") return unreadNotifications;
+    return unreadNotifications.filter((item) => item.type === activeNotificationFilter);
+  }, [unreadNotifications, activeNotificationFilter]);
+
+  function notificationTypeLabel(type: NotificationItem["type"]) {
+    switch (type) {
+      case "contest":
+        return "Contest";
+      case "announcement":
+        return "Announcement";
+      case "message":
+        return "Message";
+      case "complaint":
+        return "Complaint";
+      default:
+        return type;
+    }
+  }
+
+  function notificationTypeIcon(type: NotificationItem["type"]) {
+    switch (type) {
+      case "contest":
+        return <FileCheck2 className="h-3.5 w-3.5 text-amber-600" />;
+      case "announcement":
+        return <Megaphone className="h-3.5 w-3.5 text-blue-600" />;
+      case "message":
+        return <MessageSquareText className="h-3.5 w-3.5 text-emerald-600" />;
+      case "complaint":
+        return <AlertTriangle className="h-3.5 w-3.5 text-rose-600" />;
+      default:
+        return <Bell className="h-3.5 w-3.5 text-slate-600" />;
+    }
+  }
+
+  function roleScopeFromPath(): DashboardScope {
+    if (pathname.startsWith("/super-admin")) return "superadmin";
+    if (pathname.startsWith("/admin")) return "admin";
+    if (pathname.startsWith("/accountant")) return "accountant";
+    if (pathname.startsWith("/parent")) return "parent";
+    if (pathname.startsWith("/teacher")) return "teacher";
+    if (pathname.startsWith("/student")) return "student";
+    if (pathname.startsWith("/registrar")) return "registrar";
+    return "admin";
+  }
+
+  function notificationHref(item: NotificationItem) {
+    const scope = roleScopeFromPath();
+
+    const routeMap: Record<DashboardScope, Record<NotificationItem["type"], string>> = {
+      superadmin: {
+        contest: "/super-admin/dashboard",
+        announcement: "/super-admin/dashboard",
+        message: "/super-admin/dashboard",
+        complaint: "/super-admin/dashboard",
+      },
+      admin: {
+        contest: "/admin/invoices",
+        announcement: "/admin/announcements",
+        message: "/admin/announcements",
+        complaint: "/admin/parents",
+      },
+      accountant: {
+        contest: "/accountant/invoices",
+        announcement: "/accountant/dashboard",
+        message: "/accountant/dashboard",
+        complaint: "/accountant/dashboard",
+      },
+      parent: {
+        contest: "/parent/fees",
+        announcement: "/parent/announcements",
+        message: "/parent/messages",
+        complaint: "/parent/complaints",
+      },
+      teacher: {
+        contest: "/teacher/dashboard",
+        announcement: "/teacher/announcements",
+        message: "/teacher/announcements",
+        complaint: "/teacher/dashboard",
+      },
+      student: {
+        contest: "/student/dashboard",
+        announcement: "/student/announcements",
+        message: "/student/announcements",
+        complaint: "/student/dashboard",
+      },
+      registrar: {
+        contest: "/registrar/dashboard",
+        announcement: "/registrar/dashboard",
+        message: "/registrar/dashboard",
+        complaint: "/registrar/dashboard",
+      },
+    };
+
+    return routeMap[scope][item.type] ?? pathname;
+  }
+
+  function isBillContestNotification(item: NotificationItem) {
+    const text = `${item.title} ${item.description}`.toLowerCase();
+    return item.type === "contest" || (item.type === "message" && (text.includes("bill") || text.includes("contest") || text.includes("review")));
+  }
+
+  function notificationTargetLabel(item: NotificationItem) {
+    const href = isBillContestNotification(item) && roleScopeFromPath() === "parent" ? "/parent/fees" : notificationHref(item);
+    if (href.startsWith("/parent/messages")) return "Opens Messages";
+    if (href.startsWith("/parent/complaints")) return "Opens Complaints";
+    if (href.startsWith("/parent/fees")) return "Opens Fees & Bills";
+    if (href.startsWith("/parent/announcements")) return "Opens Announcements";
+    if (href.startsWith("/teacher/announcements")) return "Opens Announcements";
+    if (href.startsWith("/student/announcements")) return "Opens Announcements";
+    if (href.startsWith("/accountant/invoices")) return "Opens Bills";
+    if (href.startsWith("/admin/invoices")) return "Opens Bills";
+    if (href.startsWith("/admin/announcements")) return "Opens Announcements";
+    if (href.startsWith("/admin/parents")) return "Opens Parents";
+    return "Opens Section";
+  }
+
+  function openNotification(item: NotificationItem) {
+    const href = isBillContestNotification(item) && roleScopeFromPath() === "parent" ? "/parent/fees" : notificationHref(item);
+    const nextReadIds = Array.from(new Set([...readNotificationIds, item.id]));
+    setReadNotificationIds(nextReadIds);
+    window.localStorage.setItem(readStorageKey, JSON.stringify(nextReadIds));
+    setShowNotifications(false);
+    router.push(href);
+  }
+
+  function markAllAsRead() {
+    const nextReadIds = Array.from(new Set([...readNotificationIds, ...notifications.map((item) => item.id)]));
+    setReadNotificationIds(nextReadIds);
+    window.localStorage.setItem(readStorageKey, JSON.stringify(nextReadIds));
+  }
+
+  async function loadNotifications() {
+    setLoadingNotifications(true);
+    setNotificationError("");
+
+    try {
+      const response = await fetch("/api/notifications/latest", { cache: "no-store" });
+      const payload = (await response.json().catch(() => ({}))) as { notifications?: NotificationItem[]; error?: string };
+
+      if (!response.ok) {
+        setNotificationError(payload.error ?? "Could not load notifications.");
+        return;
+      }
+
+      setNotifications(Array.isArray(payload.notifications) ? payload.notifications : []);
+    } catch {
+      setNotificationError("Could not load notifications.");
+    } finally {
+      setLoadingNotifications(false);
+    }
+  }
+
+  function formatRelativeTime(value: string) {
+    const createdAt = new Date(value).getTime();
+    if (Number.isNaN(createdAt)) return "Now";
+
+    const diff = Math.max(0, currentTimeMs - createdAt);
+    const minute = 60_000;
+    const hour = 60 * minute;
+    const day = 24 * hour;
+
+    if (diff < minute) return "Just now";
+    if (diff < hour) return `${Math.floor(diff / minute)}m ago`;
+    if (diff < day) return `${Math.floor(diff / hour)}h ago`;
+    return `${Math.floor(diff / day)}d ago`;
+  }
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadNotifications();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      try {
+        const stored = window.localStorage.getItem(readStorageKey);
+        if (!stored) {
+          setReadNotificationIds([]);
+          return;
+        }
+
+        const parsed = JSON.parse(stored) as string[];
+        setReadNotificationIds(Array.isArray(parsed) ? parsed.filter((item) => typeof item === "string") : []);
+      } catch {
+        setReadNotificationIds([]);
+      }
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [readStorageKey]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setCurrentTimeMs(Date.now());
+    }, 60_000);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(readStorageKey, JSON.stringify(readNotificationIds));
+    } catch {
+      // Ignore storage write failures.
+    }
+  }, [readNotificationIds, readStorageKey]);
+
+  useEffect(() => {
+    if (!showNotifications) return;
+
+    const interval = window.setInterval(() => {
+      loadNotifications();
+    }, 45_000);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [showNotifications]);
 
   function toggleTheme() {
     const nextTheme = dark ? "light" : "dark";
@@ -114,14 +368,101 @@ export function PortalTopbar({
           <Input className="h-9 w-44 rounded-lg border-slate-200 bg-white pl-9 text-sm md:w-72 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500" placeholder="Quick search" />
         </div>
 
-        <button
-          type="button"
-          className="relative rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-slate-700 transition hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-slate-600"
-          aria-label="Notifications"
-        >
-          <Bell className="h-4 w-4" />
-          {notifications ? <span className="absolute -right-1 -top-1 rounded-full bg-rose-500 px-1.5 text-[10px] text-white">{notifications}</span> : null}
-        </button>
+        <div className="relative">
+          <button
+            type="button"
+            className="relative rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-slate-700 transition hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-slate-600"
+            aria-label="Notifications"
+            aria-expanded={showNotifications}
+            onClick={() => {
+              const next = !showNotifications;
+              setShowNotifications(next);
+              if (next) {
+                loadNotifications();
+              }
+            }}
+          >
+            <Bell className="h-4 w-4" />
+            {notificationCount ? <span className="absolute -right-1 -top-1 rounded-full bg-rose-500 px-1.5 text-[10px] text-white">{notificationCount}</span> : null}
+          </button>
+
+          {showNotifications ? (
+            <div className="absolute right-0 z-30 mt-2 w-80 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900">
+              <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2 dark:border-slate-700">
+                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">Latest Notifications</p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={markAllAsRead}
+                    disabled={!unreadNotifications.length}
+                    className="text-xs text-slate-500 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50 dark:text-slate-400 dark:hover:text-slate-200"
+                  >
+                    Mark all read
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowNotifications(false)}
+                    className="text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-1 border-b border-slate-100 px-2 py-2 dark:border-slate-700">
+                {([
+                  { key: "all", label: "All" },
+                  { key: "contest", label: "Contests" },
+                  { key: "announcement", label: "Announcements" },
+                  { key: "message", label: "Messages" },
+                  { key: "complaint", label: "Complaints" },
+                ] as Array<{ key: NotificationFilter; label: string }>).map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => setActiveNotificationFilter(item.key)}
+                    className={`rounded-md px-2 py-1 text-[11px] font-medium ${activeNotificationFilter === item.key ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900" : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"}`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="max-h-80 overflow-y-auto p-2">
+                {loadingNotifications ? <p className="px-2 py-3 text-xs text-slate-500">Loading notifications...</p> : null}
+                {notificationError ? <p className="px-2 py-3 text-xs text-rose-600">{notificationError}</p> : null}
+                {!loadingNotifications && !notificationError && filteredNotifications.length === 0 ? (
+                  <p className="px-2 py-3 text-xs text-slate-500">No notifications yet.</p>
+                ) : null}
+
+                {!loadingNotifications && !notificationError
+                  ? filteredNotifications.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => openNotification(item)}
+                        className="w-full rounded-lg px-2 py-2 text-left transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300 dark:hover:bg-slate-800/60 dark:focus:ring-slate-600"
+                        title={`Open ${notificationTypeLabel(item.type)}`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-1.5">
+                            {notificationTypeIcon(item.type)}
+                            <p className="line-clamp-1 text-sm font-medium text-slate-900 dark:text-slate-100">{item.title}</p>
+                          </div>
+                          <span className="shrink-0 text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-400">{notificationTypeLabel(item.type)}</span>
+                        </div>
+                        <p className="mt-1 line-clamp-2 text-xs text-slate-600 dark:text-slate-300">{item.description}</p>
+                        <div className="mt-1 flex items-center justify-between gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+                          <span>{formatRelativeTime(item.createdAt)}</span>
+                          <span className="font-medium text-slate-500 dark:text-slate-400">{notificationTargetLabel(item)}</span>
+                        </div>
+                      </button>
+                    ))
+                  : null}
+              </div>
+            </div>
+          ) : null}
+        </div>
 
         <button
           type="button"

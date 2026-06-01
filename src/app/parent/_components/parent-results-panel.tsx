@@ -32,7 +32,7 @@ export function ParentResultsPanel({ data }: { data: ChildResultSummary[] }) {
   const previewUrl = selected ? `/reports/${selected.studentId}` : "";
 
   if (!data.length) {
-    return <div className="rounded-xl border border-dashed border-slate-300 bg-white/70 p-6 text-center text-sm text-slate-500">No result summaries available for your linked children.</div>;
+    return <div className="rounded-xl border border-dashed border-slate-300 bg-white/70 p-6 text-center text-sm text-slate-500">No published result is available yet.</div>;
   }
 
   return (

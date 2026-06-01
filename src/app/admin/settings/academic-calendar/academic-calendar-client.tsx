@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { humanizeEnum } from "@/lib/utils";
 
 type SessionDto = {
   id: string;
@@ -250,7 +251,7 @@ export function AcademicCalendarClient({
                 <div>
                   <p className="font-medium">{session.name}</p>
                   <div className="mt-1 flex gap-2">
-                    <Badge>{session.status}</Badge>
+                    <Badge>{humanizeEnum(session.status)}</Badge>
                     {session.isCurrent ? <Badge className="bg-green-50 text-green-700">Active Context</Badge> : null}
                   </div>
                 </div>
@@ -284,7 +285,7 @@ export function AcademicCalendarClient({
                 <div>
                   <p className="font-medium">{term.name}</p>
                   <div className="mt-1 flex gap-2">
-                    <Badge>{term.status}</Badge>
+                    <Badge>{humanizeEnum(term.status)}</Badge>
                     {term.isCurrent ? <Badge className="bg-green-50 text-green-700">Active Context</Badge> : null}
                   </div>
                 </div>

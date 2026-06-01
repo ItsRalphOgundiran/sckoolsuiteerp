@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { humanizeEnum } from "@/lib/utils";
 
 type TableRowData = {
   id: string;
@@ -73,7 +74,7 @@ export function DashboardDataTable({
           >
             {statuses.map((option) => (
               <option key={option} value={option}>
-                {option}
+                {option === "ALL" ? "All" : humanizeEnum(option)}
               </option>
             ))}
           </select>
@@ -98,7 +99,7 @@ export function DashboardDataTable({
                     <p className="font-medium text-slate-900 dark:text-slate-100">{row.primary}</p>
                     <p className="text-xs text-slate-500 dark:text-slate-400">{row.secondary ?? "-"}</p>
                   </TableCell>
-                  <TableCell>{row.status ?? "-"}</TableCell>
+                  <TableCell>{row.status ? humanizeEnum(row.status) : "-"}</TableCell>
                   <TableCell>{row.amount ?? "-"}</TableCell>
                   <TableCell>{row.date ?? "-"}</TableCell>
                 </TableRow>

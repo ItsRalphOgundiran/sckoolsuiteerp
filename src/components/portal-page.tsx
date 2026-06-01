@@ -33,18 +33,21 @@ export async function PortalPage({
 
   if (roleScope === "superadmin") {
     const schools = await (await import("@/lib/prisma")).prisma.school.findMany({
-      include: { students: true, users: true },
+      include: { students: true, users: true, payments: true },
       orderBy: { createdAt: "desc" },
     });
+
+    const activeSchools = schools.filter((s) => s.isActive).length;
+    const totalRevenue = schools.reduce((sum, school) => sum + school.payments.reduce((acc, payment) => acc + payment.amount, 0), 0);
 
     return (
       <PortalShell role={user.role} userName={user.name ?? "Super Admin"} pathname={pathname}>
         <MetricGrid
           items={[
-            { label: "Active Schools", value: String(schools.filter((s) => s.isActive).length) },
+            { label: "Active Schools", value: String(activeSchools) },
             { label: "Total Schools", value: String(schools.length) },
-            { label: "Subscriptions", value: "12", helper: "Placeholder" },
-            { label: "Platform Revenue", value: naira(12500000), helper: "Placeholder" },
+            { label: "Subscription Coverage", value: `${schools.length ? ((activeSchools / schools.length) * 100).toFixed(1) : "0.0"}%`, helper: "Active schools ratio" },
+            { label: "Platform Revenue", value: naira(totalRevenue), helper: "From recorded payments" },
           ]}
         />
         <SimpleTable
@@ -87,8 +90,8 @@ export async function PortalPage({
             <CardTitle>{title}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm text-slate-700">
-            <p>Current Session: {latestResult?.session.name ?? "2025/2026"}</p>
-            <p>Current Term: {latestResult?.term.name ?? "First Term"}</p>
+            <p>Current Session: {latestResult?.session.name ?? "-"}</p>
+            <p>Current Term: {latestResult?.term.name ?? "-"}</p>
             <p>Announcements: {core.announcements.length}</p>
             <p className="text-xs text-slate-500">Role-based access enabled.</p>
           </CardContent>
@@ -142,18 +145,18 @@ export async function PortalPage({
           <CardContent className="space-y-2 text-sm">
             <div className="flex flex-wrap gap-2">
               <Badge>Fees</Badge>
-              <Badge>Invoices</Badge>
+              <Badge>Bills</Badge>
               <Badge>Attendance</Badge>
               <Badge>Results</Badge>
               <Badge>LMS</Badge>
             </div>
             {latestInvoice ? (
               <div className="rounded-lg border border-slate-200 p-3">
-                <p className="font-medium">Latest Invoice: {latestInvoice.invoiceNumber}</p>
+                <p className="font-medium">Latest Bill: {latestInvoice.invoiceNumber}</p>
                 <p className="text-slate-600">Status: {statusLabel(latestInvoice.status)}</p>
                 <div className="mt-2 flex gap-2">
                   <Link href={`/invoice/${latestInvoice.id}`} className="text-[var(--brand-primary)] underline">
-                    View Invoice
+                    View Bill
                   </Link>
                   {latestInvoice.receipt ? (
                     <Link href={`/receipt/${latestInvoice.id}`} className="text-[var(--brand-secondary)] underline">

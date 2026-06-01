@@ -19,7 +19,8 @@ export function SetupRequiredScreen({
   actionMode = "link",
 }: SetupRequiredScreenProps) {
   const handleSignOut = async () => {
-    await signOut({ callbackUrl: actionHref });
+    const callbackUrl = actionHref.startsWith("/") ? `${window.location.origin}${actionHref}` : actionHref;
+    await signOut({ callbackUrl });
   };
 
   return (

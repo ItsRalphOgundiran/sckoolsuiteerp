@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { PortalShell } from "@/components/portal-shell";
 import { SetupRequiredScreen } from "@/components/setup-required-screen";
 import { DashboardDataTable } from "@/components/dashboard-data-table";
@@ -14,6 +15,7 @@ import { requireRole } from "@/lib/auth-guards";
 import { getCoreSchoolDataByContext, getCurrentSchoolByUser, getUserAcademicContext } from "@/lib/data";
 import { buildSchoolRoleModel, buildSuperAdminModel, type RoleScope } from "@/lib/dashboard/role-dashboard-model";
 import { prisma } from "@/lib/prisma";
+import { getSetupWizardState } from "@/lib/setup-wizard";
 
 const roleAliases: Record<RoleScope, string[]> = {
   superadmin: ["SUPER_ADMIN"],
@@ -87,6 +89,7 @@ export async function RoleDashboard({ roleScope, pathname }: { roleScope: RoleSc
   });
 
   const model = buildSchoolRoleModel(roleScope as Exclude<RoleScope, "superadmin">, core);
+  const setup = roleScope === "admin" ? await getSetupWizardState(profile.schoolId) : null;
 
   return (
     <PortalShell
@@ -104,6 +107,15 @@ export async function RoleDashboard({ roleScope, pathname }: { roleScope: RoleSc
       primaryColor={core.school?.branding?.primaryColor}
       secondaryColor={core.school?.branding?.secondaryColor}
     >
+      {roleScope === "admin" && setup && !setup.status.setupCompleted ? (
+        <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          <p className="font-semibold">School setup is not complete.</p>
+          <p className="mt-1">Complete all setup steps before running full billing and result publishing workflows. Current progress: {setup.completionPercentage}%.</p>
+          <Link href="/admin/setup" className="mt-2 inline-flex rounded-md border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-900 hover:bg-amber-100">
+            Continue Setup Wizard
+          </Link>
+        </section>
+      ) : null}
       <DashboardHero title={model.title} subtitle={model.subtitle} />
       <DashboardStatCards items={model.stats} />
 

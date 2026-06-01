@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { humanizeEnum } from "@/lib/utils";
 
 type Complaint = {
   id: string;
@@ -68,7 +69,7 @@ export function ParentComplaintsPanel({ initialComplaints = [] }: { initialCompl
               <p className="font-medium text-slate-900">{item.subject}</p>
               <p className="text-xs uppercase tracking-wide text-slate-500">{item.category}</p>
               <p className="mt-1 text-slate-700">{item.complaint}</p>
-              <p className="mt-1 text-[11px] uppercase tracking-wide text-slate-500">{item.status}</p>
+              <p className="mt-1 text-[11px] tracking-wide text-slate-500">{humanizeEnum(item.status)}</p>
             </div>
           )) : <p className="text-slate-500">No complaints logged yet.</p>}
         </div>

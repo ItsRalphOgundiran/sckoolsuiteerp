@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { humanizeEnum } from "@/lib/utils";
 
 type Message = {
   id: string;
@@ -54,7 +55,7 @@ export function ParentMessagesPanel({ initialMessages = [] }: { initialMessages?
           <textarea className="h-28 w-full rounded-md border border-slate-300 px-3 py-2" placeholder="Write your message" value={form.message} onChange={(e) => setForm((s) => ({ ...s, message: e.target.value }))} />
           <button type="button" onClick={submit} className="rounded-md bg-[var(--brand-primary)] px-3 py-2 text-white">Send Message</button>
           {toast ? <p className="text-xs text-slate-600">{toast}</p> : null}
-          <p className="text-xs text-slate-500">Status uses sent/read placeholder lifecycle.</p>
+          <p className="text-xs text-slate-500">Messages are tracked with delivery status for follow-up.</p>
         </div>
       </article>
 
@@ -66,7 +67,7 @@ export function ParentMessagesPanel({ initialMessages = [] }: { initialMessages?
               <p className="font-medium text-slate-900">To: {item.recipient}</p>
               <p className="text-xs text-slate-500">{item.subject}</p>
               <p className="mt-1 text-slate-700">{item.message}</p>
-              <p className="mt-1 text-[11px] uppercase tracking-wide text-slate-500">{item.status}</p>
+              <p className="mt-1 text-[11px] tracking-wide text-slate-500">{humanizeEnum(item.status)}</p>
             </div>
           )) : <p className="text-slate-500">No messages yet.</p>}
         </div>

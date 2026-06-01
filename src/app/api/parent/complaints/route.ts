@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
+import { ComplaintStatus } from "@prisma/client";
+import { createAuditLog } from "@/lib/audit-log";
 import { prisma } from "@/lib/prisma";
 
 const createSchema = z.object({
@@ -21,24 +23,22 @@ export async function GET() {
 
   if (!parent) return NextResponse.json([]);
 
-  const items = await prisma.schoolSetting.findMany({
-    where: {
-      schoolId: session.user.schoolId,
-      key: { startsWith: `parent_complaint_${parent.id}_` },
-    },
+  const items = await prisma.parentComplaint.findMany({
+    where: { schoolId: session.user.schoolId, parentId: parent.id },
     orderBy: { createdAt: "desc" },
-    take: 50,
+    take: 100,
   });
 
-  const complaints = items
-    .map((item) => {
-      try {
-        return JSON.parse(item.value);
-      } catch {
-        return null;
-      }
-    })
-    .filter(Boolean);
+  const complaints = items.map((item) => ({
+    id: item.id,
+    category: item.category,
+    subject: item.subject,
+    complaint: item.complaint,
+    status: item.status,
+    resolutionNote: item.resolutionNote,
+    createdAt: item.createdAt.toISOString(),
+    updatedAt: item.updatedAt.toISOString(),
+  }));
 
   return NextResponse.json(complaints);
 }
@@ -62,22 +62,40 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const payload = {
-    id: `${Date.now()}`,
-    category: parsed.data.category,
-    subject: parsed.data.subject,
-    complaint: parsed.data.complaint,
-    status: "submitted",
-    createdAt: new Date().toISOString(),
-  };
-
-  await prisma.schoolSetting.create({
+  const created = await prisma.parentComplaint.create({
     data: {
       schoolId: session.user.schoolId,
-      key: `parent_complaint_${parent.id}_${Date.now()}`,
-      value: JSON.stringify(payload),
+      parentId: parent.id,
+      category: parsed.data.category,
+      subject: parsed.data.subject,
+      complaint: parsed.data.complaint,
+      status: ComplaintStatus.OPEN,
     },
   });
 
-  return NextResponse.json({ ok: true, complaint: payload });
+  await createAuditLog({
+    schoolId: session.user.schoolId,
+    actorUserId: session.user.id,
+    action: "PARENT_COMPLAINT_CREATED",
+    targetType: "ParentComplaint",
+    targetId: created.id,
+    metadata: {
+      category: created.category,
+      subject: created.subject,
+      status: created.status,
+    },
+  });
+
+  return NextResponse.json({
+    ok: true,
+    complaint: {
+      id: created.id,
+      category: created.category,
+      subject: created.subject,
+      complaint: created.complaint,
+      status: created.status,
+      createdAt: created.createdAt.toISOString(),
+      updatedAt: created.updatedAt.toISOString(),
+    },
+  });
 }

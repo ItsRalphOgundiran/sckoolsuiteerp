@@ -83,6 +83,27 @@ export class AcademicCalendarRepository {
   }
 
   async getCurrentSessionTerm(schoolId: string) {
+    const [activeSessionSetting, activeTermSetting] = await Promise.all([
+      this.getSchoolSetting(schoolId, "active_session_id"),
+      this.getSchoolSetting(schoolId, "active_term_id"),
+    ]);
+
+    const configuredSessionId = activeSessionSetting?.value?.trim();
+    const configuredTermId = activeTermSetting?.value?.trim();
+
+    const [configuredSession, configuredTerm] = await Promise.all([
+      configuredSessionId
+        ? prisma.session.findFirst({ where: { id: configuredSessionId, schoolId } })
+        : Promise.resolve(null),
+      configuredTermId
+        ? prisma.term.findFirst({ where: { id: configuredTermId, schoolId }, include: { session: true } })
+        : Promise.resolve(null),
+    ]);
+
+    if (configuredSession || configuredTerm) {
+      return { session: configuredSession, term: configuredTerm };
+    }
+
     const [session, term] = await Promise.all([
       prisma.session.findFirst({ where: { schoolId, isCurrent: true } }),
       prisma.term.findFirst({ where: { schoolId, isCurrent: true }, include: { session: true } }),

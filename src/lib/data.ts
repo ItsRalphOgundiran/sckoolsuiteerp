@@ -2,6 +2,11 @@ import { PaymentStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { AcademicCalendarService } from "@/modules/academic-setup/services/academic-calendar.service";
 
+function isContestAnnouncementEntry(input: { title?: string | null; body?: string | null }) {
+  const combined = `${input.title ?? ""} ${input.body ?? ""}`.toLowerCase();
+  return combined.includes("bill contest") || (combined.includes("contest") && combined.includes("bill"));
+}
+
 export async function getCurrentSchoolByUser(userId: string) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -22,7 +27,7 @@ export async function getAdminOverview(schoolId: string) {
     prisma.invoice.aggregate({ where: { schoolId }, _sum: { totalAmount: true, balance: true } }),
     prisma.payment.aggregate({ where: { schoolId }, _sum: { amount: true } }),
     prisma.attendance.count({ where: { schoolId } }),
-    prisma.announcement.count({ where: { schoolId } }),
+    prisma.announcement.findMany({ where: { schoolId }, select: { title: true, body: true } }),
   ]);
 
   return {
@@ -31,7 +36,7 @@ export async function getAdminOverview(schoolId: string) {
     parents,
     classes,
     attendance,
-    announcements,
+    announcements: announcements.filter((item) => !isContestAnnouncementEntry(item)).length,
     totalInvoiced: invoices._sum.totalAmount ?? 0,
     outstanding: invoices._sum.balance ?? 0,
     totalPaid: paid._sum.amount ?? 0,
@@ -97,7 +102,7 @@ export async function getCoreSchoolDataByContext(schoolId: string, context?: { s
         term: true,
         session: true,
         receipt: true,
-        items: { include: { feeItem: true } },
+        items: { include: { feeItem: { include: { feeGroup: true } } } },
       },
     }),
     prisma.payment.findMany({ where: { schoolId }, include: { invoice: true, student: { include: { user: true } } } }),
@@ -145,7 +150,7 @@ export async function getCoreSchoolDataByContext(schoolId: string, context?: { s
     quizzes,
     onlineClasses,
     attendance,
-    announcements,
+    announcements: announcements.filter((item) => !isContestAnnouncementEntry(item)),
     result,
     sessions,
     terms,

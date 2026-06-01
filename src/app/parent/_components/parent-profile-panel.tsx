@@ -62,13 +62,8 @@ export function ParentProfilePanel() {
       </article>
 
       <article className="glass-panel rounded-2xl p-4">
-        <h3 className="mb-3 text-base font-semibold text-slate-900">Password Change</h3>
-        <div className="space-y-2 text-sm">
-          <input className="w-full rounded-md border border-slate-300 px-3 py-2" type="password" placeholder="Current password" disabled />
-          <input className="w-full rounded-md border border-slate-300 px-3 py-2" type="password" placeholder="New password" disabled />
-          <input className="w-full rounded-md border border-slate-300 px-3 py-2" type="password" placeholder="Confirm new password" disabled />
-          <button type="button" className="rounded-md border border-slate-300 px-3 py-2" disabled>Change Password (Coming soon)</button>
-        </div>
+        <h3 className="mb-3 text-base font-semibold text-slate-900">Security</h3>
+        <p className="text-sm text-slate-600">Password updates are managed via the school administration desk in this release.</p>
       </article>
     </section>
   );

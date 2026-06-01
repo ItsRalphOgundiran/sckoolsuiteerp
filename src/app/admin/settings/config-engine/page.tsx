@@ -38,7 +38,7 @@ export default async function ConfigEnginePage() {
     >
       <Card>
         <CardHeader>
-          <CardTitle>Configuration Engine (Phase 1)</CardTitle>
+          <CardTitle>Configuration Engine</CardTitle>
         </CardHeader>
         <CardContent>
           <ConfigEngineClient

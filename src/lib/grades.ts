@@ -11,8 +11,26 @@ const gradeScale = [
   { min: 0, grade: "U", gpa: 0 },
 ] as const;
 
+export type GradingBand = {
+  min: number;
+  grade: string;
+  gpa: number;
+};
+
 export function calculateGrade(total: number) {
   return gradeScale.find((entry) => total >= entry.min) ?? gradeScale[gradeScale.length - 1];
+}
+
+export function calculateGradeFromBands(total: number, bands: GradingBand[]) {
+  const normalized = [...bands]
+    .filter((band) => Number.isFinite(band.min))
+    .sort((a, b) => b.min - a.min);
+
+  if (!normalized.length) {
+    return calculateGrade(total);
+  }
+
+  return normalized.find((entry) => total >= entry.min) ?? normalized[normalized.length - 1];
 }
 
 export function computeScore(caScore: number, examScore: number) {

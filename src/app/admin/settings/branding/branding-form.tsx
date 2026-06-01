@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import Image from "next/image";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Input } from "@/components/ui/input";
@@ -36,15 +37,15 @@ export function BrandingForm({ defaults }: { defaults: FormValues }) {
   const [message, setMessage] = useState("");
   const [uploadingField, setUploadingField] = useState<string | null>(null);
 
-  const { register, handleSubmit, formState, setValue, watch } = useForm<FormValues>({
+  const { register, handleSubmit, formState, setValue, control } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: defaults,
   });
 
-  const logoUrl = watch("logoUrl");
-  const principalSignature = watch("principalSignature");
-  const teacherSignature = watch("teacherSignature");
-  const schoolStamp = watch("schoolStamp");
+  const logoUrl = useWatch({ control, name: "logoUrl" });
+  const principalSignature = useWatch({ control, name: "principalSignature" });
+  const teacherSignature = useWatch({ control, name: "teacherSignature" });
+  const schoolStamp = useWatch({ control, name: "schoolStamp" });
 
   const uploadImageFor = async (field: keyof Pick<FormValues, "logoUrl" | "principalSignature" | "teacherSignature" | "schoolStamp">, file: File) => {
     setUploadingField(field);
@@ -119,7 +120,7 @@ export function BrandingForm({ defaults }: { defaults: FormValues }) {
           <Input {...register("logoUrl")} placeholder="Uploaded logo URL" />
           <Input type="file" accept="image/png,image/jpeg,image/webp" onChange={onFileChange("logoUrl")} disabled={uploadingField === "logoUrl"} className="max-w-[280px]" />
         </div>
-        {logoUrl ? <img src={logoUrl} alt="School logo preview" className="mt-2 h-14 rounded border border-slate-200 bg-white p-1 object-contain" /> : null}
+        {logoUrl ? <Image src={logoUrl} alt="School logo preview" width={56} height={56} unoptimized className="mt-2 h-14 w-14 rounded border border-slate-200 bg-white p-1 object-contain" /> : null}
       </div>
       <div>
         <label className="mb-1 block text-sm font-medium">Primary Color</label>
@@ -157,13 +158,13 @@ export function BrandingForm({ defaults }: { defaults: FormValues }) {
         <label className="mb-1 block text-sm font-medium">Principal Signature</label>
         <Input {...register("principalSignature")} placeholder="Uploaded signature URL" />
         <Input type="file" accept="image/png,image/jpeg,image/webp" onChange={onFileChange("principalSignature")} disabled={uploadingField === "principalSignature"} className="mt-2" />
-        {principalSignature ? <img src={principalSignature} alt="Principal signature preview" className="mt-2 h-14 rounded border border-slate-200 bg-white p-1 object-contain" /> : null}
+        {principalSignature ? <Image src={principalSignature} alt="Principal signature preview" width={140} height={56} unoptimized className="mt-2 h-14 w-auto rounded border border-slate-200 bg-white p-1 object-contain" /> : null}
       </div>
       <div>
         <label className="mb-1 block text-sm font-medium">Teacher Signature</label>
         <Input {...register("teacherSignature")} placeholder="Uploaded signature URL" />
         <Input type="file" accept="image/png,image/jpeg,image/webp" onChange={onFileChange("teacherSignature")} disabled={uploadingField === "teacherSignature"} className="mt-2" />
-        {teacherSignature ? <img src={teacherSignature} alt="Teacher signature preview" className="mt-2 h-14 rounded border border-slate-200 bg-white p-1 object-contain" /> : null}
+        {teacherSignature ? <Image src={teacherSignature} alt="Teacher signature preview" width={140} height={56} unoptimized className="mt-2 h-14 w-auto rounded border border-slate-200 bg-white p-1 object-contain" /> : null}
       </div>
       <div className="md:col-span-2">
         <label className="mb-1 block text-sm font-medium">School Stamp</label>
@@ -171,7 +172,7 @@ export function BrandingForm({ defaults }: { defaults: FormValues }) {
           <Input {...register("schoolStamp")} placeholder="Uploaded stamp URL" />
           <Input type="file" accept="image/png,image/jpeg,image/webp" onChange={onFileChange("schoolStamp")} disabled={uploadingField === "schoolStamp"} className="max-w-[280px]" />
         </div>
-        {schoolStamp ? <img src={schoolStamp} alt="School stamp preview" className="mt-2 h-16 rounded border border-slate-200 bg-white p-1 object-contain" /> : null}
+        {schoolStamp ? <Image src={schoolStamp} alt="School stamp preview" width={64} height={64} unoptimized className="mt-2 h-16 w-16 rounded border border-slate-200 bg-white p-1 object-contain" /> : null}
       </div>
       <div className="md:col-span-2">
         <label className="mb-1 block text-sm font-medium">Bank Instructions</label>

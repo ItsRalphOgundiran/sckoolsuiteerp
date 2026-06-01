@@ -2,9 +2,11 @@ import { notFound } from "next/navigation";
 import { PortalShell } from "@/components/portal-shell";
 import { SetupRequiredScreen } from "@/components/setup-required-screen";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { TeacherAttendanceForm } from "@/app/teacher/_components/teacher-attendance-form";
+import { TeacherScoreEntryForm } from "@/app/teacher/_components/teacher-score-entry-form";
 import { requireRole } from "@/lib/auth-guards";
 import { getCoreSchoolDataByContext, getCurrentSchoolByUser, getUserAcademicContext } from "@/lib/data";
-import { formatDate } from "@/lib/utils";
+import { formatDate, humanizeEnum } from "@/lib/utils";
 
 const allowed = [
   "my-classes",
@@ -103,6 +105,7 @@ export default async function TeacherSectionPage({ params }: { params: Promise<{
   const myLessons = core.lessons.filter((item) => item.teacherId === teacher.id);
   const myAssignments = core.assignments.filter((item) => item.subjectId && subjectIds.has(item.subjectId));
   const myAttendance = core.attendance.filter((item) => item.classId && classIds.has(item.classId));
+  const myStudents = core.students.filter((item) => item.classId && classIds.has(item.classId));
 
   const canonical = aliases[section as AllowedSection];
 
@@ -138,33 +141,50 @@ export default async function TeacherSectionPage({ params }: { params: Promise<{
         );
       case "attendance":
         return (
-          <Card>
-            <CardHeader><CardTitle>Attendance Records</CardTitle></CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              {myAttendance.slice(0, 20).map((item) => (
-                <div key={item.id} className="glass-soft rounded-xl p-3">
-                  <p className="font-medium">{item.student.user.name}</p>
-                  <p>{item.class?.name ?? "Class"} • {item.status} • {formatDate(item.date)}</p>
-                </div>
-              ))}
-              {!myAttendance.length ? <p className="text-slate-500">No attendance records yet.</p> : null}
-            </CardContent>
-          </Card>
+          <div className="space-y-3">
+            <TeacherAttendanceForm
+              classOptions={myClasses.map((item) => ({
+                id: item.id,
+                name: item.name,
+                students: myStudents
+                  .filter((student) => student.classId === item.id)
+                  .map((student) => ({ id: student.id, name: student.user.name })),
+              }))}
+            />
+            <Card>
+              <CardHeader><CardTitle>Attendance Records</CardTitle></CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                {myAttendance.slice(0, 20).map((item) => (
+                  <div key={item.id} className="glass-soft rounded-xl p-3">
+                    <p className="font-medium">{item.student.user.name}</p>
+                    <p>{item.class?.name ?? "Class"} • {humanizeEnum(item.status)} • {formatDate(item.date)}</p>
+                  </div>
+                ))}
+                {!myAttendance.length ? <p className="text-slate-500">No attendance records yet.</p> : null}
+              </CardContent>
+            </Card>
+          </div>
         );
       case "score-entry":
         return (
-          <Card>
-            <CardHeader><CardTitle>Score Entry Queue</CardTitle></CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              {myScores.slice(0, 20).map((item) => (
-                <div key={item.id} className="glass-soft rounded-xl p-3">
-                  <p className="font-medium">{item.student.user.name} • {item.subject.name}</p>
-                  <p>CA: {item.caScore} • Exam: {item.examScore} • Total: {item.total}%</p>
-                </div>
-              ))}
-              {!myScores.length ? <p className="text-slate-500">No score rows yet for your subjects.</p> : null}
-            </CardContent>
-          </Card>
+          <div className="space-y-3">
+            <TeacherScoreEntryForm
+              subjectOptions={mySubjects.map((item) => ({ id: item.id, name: item.name, classId: item.classId }))}
+              studentOptions={myStudents.map((item) => ({ id: item.id, name: item.user.name, classId: item.classId }))}
+            />
+            <Card>
+              <CardHeader><CardTitle>Score Entry Queue</CardTitle></CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                {myScores.slice(0, 20).map((item) => (
+                  <div key={item.id} className="glass-soft rounded-xl p-3">
+                    <p className="font-medium">{item.student.user.name} • {item.subject.name}</p>
+                    <p>CA: {item.caScore} • Exam: {item.examScore} • Total: {item.total}%</p>
+                  </div>
+                ))}
+                {!myScores.length ? <p className="text-slate-500">No score rows yet for your subjects.</p> : null}
+              </CardContent>
+            </Card>
+          </div>
         );
       case "assignments":
         return (

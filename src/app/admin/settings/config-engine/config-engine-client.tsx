@@ -38,9 +38,19 @@ type ClassNode = { name: string; arms: ClassArmNode[] };
 type SubjectNode = { name: string; className?: string; armName?: string };
 type AssessmentNode = { name: string; weight: number };
 type GradingNode = { min: number; grade: string; gpa: number };
+type ClassGroupPolicyNode = {
+  groupName: string;
+  caWeight: number;
+  examWeight: number;
+  passMark: number;
+  promotionRule?: string;
+  gradeBandsText: string;
+  attendanceGradeBandsText: string;
+  assessmentComponentsText: string;
+};
 type FeeNode = { category: string; name: string; amount: number; className?: string; isActive?: boolean };
 type TimetablePeriodNode = { day: string; period: number; subject: string; startTime?: string; endTime?: string };
-type ResultTemplateNode = { name: string; level?: string; isDefault: boolean; layoutHeader: boolean; layoutSectionsText: string };
+type ResultTemplateNode = { name: string; level?: string; classGroupName?: string; className?: string; isDefault: boolean; layoutHeader: boolean; layoutSectionsText: string };
 type EmailTemplateNode = { key: string; subject: string; body: string; isActive: boolean };
 type SmsTemplateNode = { key: string; body: string; isActive: boolean };
 type AttendanceRuleNode = { name: string; value?: string; isActive: boolean };
@@ -54,6 +64,18 @@ type MappingSpec = {
   arrayKey: string;
   fields: Record<string, string>;
 };
+
+type ConfigTab =
+  | "import"
+  | "academic"
+  | "grading"
+  | "fees"
+  | "portal"
+  | "templates"
+  | "communication"
+  | "operations"
+  | "channels"
+  | "release";
 
 function safeArray<T>(value: unknown, mapItem: (item: unknown) => T): T[] {
   if (!Array.isArray(value)) return [];
@@ -71,6 +93,73 @@ function toLayoutNode(value: unknown) {
     layoutHeader: Boolean(layout.header ?? true),
     layoutSectionsText: toStringList(layout.sections).join(", "),
   };
+}
+
+function normalizeGradingBandsText(value: unknown) {
+  if (!Array.isArray(value)) return "";
+  return value
+    .map((item) => {
+      const row = (item ?? {}) as Record<string, unknown>;
+      return `${Number(row.min ?? 0)}:${String(row.grade ?? "").trim()}:${Number(row.gpa ?? 0)}`;
+    })
+    .join("\n");
+}
+
+function normalizeAssessmentComponentsText(value: unknown) {
+  if (!Array.isArray(value)) return "";
+  return value
+    .map((item) => {
+      const row = (item ?? {}) as Record<string, unknown>;
+      return `${String(row.name ?? "").trim()}:${Number(row.maxScore ?? 0)}`;
+    })
+    .join("\n");
+}
+
+function parseGradingBandsText(value: string) {
+  return value
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [min, grade, gpa] = line.split(":").map((part) => part.trim());
+      return { min: Number(min ?? 0), grade: String(grade ?? ""), gpa: Number(gpa ?? 0) };
+    })
+    .filter((item) => item.grade);
+}
+
+function parseAssessmentComponentsText(value: string) {
+  return value
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [name, maxScore] = line.split(":").map((part) => part.trim());
+      return { name: String(name ?? ""), maxScore: Number(maxScore ?? 0) };
+    })
+    .filter((item) => item.name);
+}
+
+function buildDefaultResultTemplates(): ResultTemplateNode[] {
+  return [
+    {
+      name: "Prenursery",
+      level: "Prenursery",
+      classGroupName: "Prenursery",
+      className: "",
+      isDefault: true,
+      layoutHeader: true,
+      layoutSectionsText: "bio, performance, attendance",
+    },
+    {
+      name: "Primary",
+      level: "Primary",
+      classGroupName: "Primary",
+      className: "",
+      isDefault: false,
+      layoutHeader: true,
+      layoutSectionsText: "bio, performance, attendance",
+    },
+  ];
 }
 
 function toPeriods(value: unknown): TimetablePeriodNode[] {
@@ -175,6 +264,21 @@ export function ConfigEngineClient({
       };
     })
   );
+  const [classGroupPolicies, setClassGroupPolicies] = useState<ClassGroupPolicyNode[]>(() =>
+    safeArray(initialAcademic.classGroupPolicies, (item) => {
+      const node = (item ?? {}) as Record<string, unknown>;
+      return {
+        groupName: String(node.groupName ?? ""),
+        caWeight: Number(node.caWeight ?? 40),
+        examWeight: Number(node.examWeight ?? 60),
+        passMark: Number(node.passMark ?? 50),
+        promotionRule: String(node.promotionRule ?? "Promote if average >= pass mark"),
+        gradeBandsText: normalizeGradingBandsText(node.gradeBands),
+        attendanceGradeBandsText: normalizeGradingBandsText(node.attendanceGradeBands),
+        assessmentComponentsText: normalizeAssessmentComponentsText(node.assessmentComponents),
+      };
+    })
+  );
   const [feeStructures, setFeeStructures] = useState<FeeNode[]>(() =>
     safeArray(initialFinance.feeStructures, (item) => {
       const node = (item ?? {}) as Record<string, unknown>;
@@ -200,17 +304,22 @@ export function ConfigEngineClient({
     inApp: Boolean(initialNotificationControls.inApp ?? true),
   });
   const [resultTemplates, setResultTemplates] = useState<ResultTemplateNode[]>(() =>
-    safeArray(initialResult.templates, (item) => {
-      const node = (item ?? {}) as Record<string, unknown>;
-      const layoutNode = toLayoutNode(node.layout);
-      return {
-        name: String(node.name ?? ""),
-        level: String(node.level ?? ""),
-        isDefault: node.isDefault === undefined ? false : Boolean(node.isDefault),
-        layoutHeader: layoutNode.layoutHeader,
-        layoutSectionsText: layoutNode.layoutSectionsText,
-      };
-    })
+    (() => {
+      const rows = safeArray(initialResult.templates, (item) => {
+        const node = (item ?? {}) as Record<string, unknown>;
+        const layoutNode = toLayoutNode(node.layout);
+        return {
+          name: String(node.name ?? ""),
+          level: String(node.level ?? ""),
+          classGroupName: String(node.classGroupName ?? ""),
+          className: String(node.className ?? ""),
+          isDefault: node.isDefault === undefined ? false : Boolean(node.isDefault),
+          layoutHeader: layoutNode.layoutHeader,
+          layoutSectionsText: layoutNode.layoutSectionsText,
+        };
+      });
+      return rows.length > 0 ? rows : buildDefaultResultTemplates();
+    })()
   );
   const [emailTemplates, setEmailTemplates] = useState<EmailTemplateNode[]>(() =>
     safeArray(initialCommunication.emailTemplates, (item) => {
@@ -293,6 +402,7 @@ export function ConfigEngineClient({
   const [sampleName, setSampleName] = useState("");
   const [sampleData, setSampleData] = useState<Record<string, unknown> | null>(null);
   const [mappingStatus, setMappingStatus] = useState("");
+  const [activeTab, setActiveTab] = useState<ConfigTab>("academic");
 
   const [sessionMapping, setSessionMapping] = useState<MappingSpec>({
     arrayKey: "",
@@ -340,6 +450,25 @@ export function ConfigEngineClient({
     [sessions, terms, classes, subjects, assessmentTypes, gradingSystem, feeStructures]
   );
 
+  const tabItems: Array<{ key: ConfigTab; label: string }> = [
+    { key: "academic", label: "Academic" },
+    { key: "grading", label: "Grading" },
+    { key: "fees", label: "Fees" },
+    { key: "templates", label: "Result Templates" },
+    { key: "communication", label: "Communication" },
+    { key: "portal", label: "Portal" },
+    { key: "operations", label: "Operations" },
+    { key: "channels", label: "Channels & Roles" },
+    { key: "import", label: "Import Wizard" },
+    { key: "release", label: "Publish & Versions" },
+  ];
+
+  function tabClass(key: ConfigTab) {
+    return key === activeTab
+      ? "rounded-full border border-slate-900 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white"
+      : "rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50";
+  }
+
   const sampleArrayKeys = useMemo(() => {
     if (!sampleData) return [];
     return Object.entries(sampleData)
@@ -379,14 +508,6 @@ export function ConfigEngineClient({
       parsed[sheetName] = rows;
     });
 
-    return parsed;
-  }
-
-  function parseJsonArray(raw: string, label: string) {
-    const parsed = JSON.parse(raw || "[]");
-    if (!Array.isArray(parsed)) {
-      throw new Error(`${label} must be a JSON array.`);
-    }
     return parsed;
   }
 
@@ -744,6 +865,18 @@ export function ConfigEngineClient({
         gradingSystem: gradingSystem
           .filter((item) => item.grade.trim())
           .map((item) => ({ min: Number(item.min) || 0, grade: item.grade.trim(), gpa: Number(item.gpa) || 0 })),
+        classGroupPolicies: classGroupPolicies
+          .filter((item) => item.groupName.trim())
+          .map((item) => ({
+            groupName: item.groupName.trim(),
+            caWeight: Number(item.caWeight) || 0,
+            examWeight: Number(item.examWeight) || 0,
+            passMark: Number(item.passMark) || 0,
+            promotionRule: item.promotionRule?.trim() || undefined,
+            gradeBands: parseGradingBandsText(item.gradeBandsText),
+            attendanceGradeBands: parseGradingBandsText(item.attendanceGradeBandsText),
+            assessmentComponents: parseAssessmentComponentsText(item.assessmentComponentsText),
+          })),
       };
 
       const finance = {
@@ -772,6 +905,8 @@ export function ConfigEngineClient({
           .map((item) => ({
             name: item.name.trim(),
             level: item.level?.trim() || undefined,
+            classGroupName: item.classGroupName?.trim() || undefined,
+            className: item.className?.trim() || undefined,
             isDefault: item.isDefault === true,
             layout: {
               header: item.layoutHeader,
@@ -892,12 +1027,22 @@ export function ConfigEngineClient({
   }
 
   return (
-    <div className="space-y-4">
-      <section className="glass-soft rounded-xl p-4">
-        <h3 className="text-sm font-semibold text-slate-900">Sample Upload & Mapping Wizard (Phase 1.2)</h3>
+    <div className="space-y-6">
+      <div className="glass-soft rounded-xl p-3">
+        <div className="flex flex-wrap gap-2">
+          {tabItems.map((item) => (
+            <button key={item.key} type="button" className={tabClass(item.key)} onClick={() => setActiveTab(item.key)}>
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {activeTab === "import" ? <section className="glass-soft rounded-xl p-5">
+        <h3 className="text-sm font-semibold text-slate-900">Sample Upload & Mapping Wizard</h3>
         <p className="mt-1 text-xs text-slate-500">Upload a school sample JSON, map columns to config fields, and apply in one click.</p>
 
-        <div className="mt-3 flex flex-wrap items-end gap-2">
+        <div className="mt-4 flex flex-wrap items-end gap-3">
           <div>
             <p className="text-xs uppercase tracking-wide text-slate-500">Sample File (JSON/CSV/XLSX/XLS)</p>
             <Input
@@ -930,7 +1075,7 @@ export function ConfigEngineClient({
         </div>
 
         {sampleArrayKeys.length ? (
-          <div className="mt-3 grid gap-3 lg:grid-cols-2">
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
             <MappingCard
               title="Sessions"
               arrayKeys={sampleArrayKeys}
@@ -1007,41 +1152,41 @@ export function ConfigEngineClient({
         ) : null}
 
         {mappingStatus ? <p className="mt-3 text-sm text-slate-600">{mappingStatus}</p> : null}
-      </section>
+      </section> : null}
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="glass-soft rounded-xl p-3 text-sm">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="glass-soft rounded-xl p-4 text-sm">
           <p className="text-xs uppercase tracking-wide text-slate-500">Active Version</p>
           <p className="mt-1 text-lg font-semibold text-slate-900">v{initialActive.version}</p>
         </div>
-        <div className="glass-soft rounded-xl p-3 text-sm">
+        <div className="glass-soft rounded-xl p-4 text-sm">
           <p className="text-xs uppercase tracking-wide text-slate-500">Source</p>
           <p className="mt-1 text-lg font-semibold text-slate-900">{initialActive.source}</p>
         </div>
-        <div className="glass-soft rounded-xl p-3 text-sm">
+        <div className="glass-soft rounded-xl p-4 text-sm">
           <p className="text-xs uppercase tracking-wide text-slate-500">Academic Nodes</p>
           <p className="mt-1 text-lg font-semibold text-slate-900">{summary.sessions + summary.terms + summary.classes + summary.subjects}</p>
         </div>
-        <div className="glass-soft rounded-xl p-3 text-sm">
+        <div className="glass-soft rounded-xl p-4 text-sm">
           <p className="text-xs uppercase tracking-wide text-slate-500">Fee Definitions</p>
           <p className="mt-1 text-lg font-semibold text-slate-900">{summary.fees}</p>
         </div>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-2">
-        <section className="glass-soft rounded-xl p-4">
+      {(activeTab === "academic" || activeTab === "grading") ? <div className="grid gap-6 xl:grid-cols-2">
+        {activeTab === "academic" ? <section className="glass-soft rounded-xl p-5">
           <h3 className="text-sm font-semibold text-slate-900">Academic Configuration</h3>
           <p className="mt-1 text-xs text-slate-500">Define sessions, terms, classes, and subjects without hardcoded values.</p>
 
-          <div className="mt-3 space-y-3">
-            <div className="rounded-lg border border-slate-200 bg-white p-3">
-              <div className="mb-2 flex items-center justify-between">
+          <div className="mt-4 space-y-5">
+            <div className="rounded-lg border border-slate-200 bg-white p-4">
+              <div className="mb-3 flex items-center justify-between">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Sessions</p>
                 <Button size="sm" variant="outline" onClick={() => setSessions((prev) => [...prev, { name: "", status: "DRAFT" }])}>Add Session</Button>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {sessions.map((item, index) => (
-                  <div key={`session-${index}`} className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_140px_auto_auto]">
+                  <div key={`session-${index}`} className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_140px_auto_auto]">
                     <Input value={item.name} onChange={(e) => setSessions((prev) => prev.map((row, i) => (i === index ? { ...row, name: e.target.value } : row)))} placeholder="Session name" />
                     <Input value={item.status ?? ""} onChange={(e) => setSessions((prev) => prev.map((row, i) => (i === index ? { ...row, status: e.target.value } : row)))} placeholder="Status" />
                     <label className="inline-flex items-center gap-1 text-xs text-slate-600">
@@ -1054,14 +1199,14 @@ export function ConfigEngineClient({
               </div>
             </div>
 
-            <div className="rounded-lg border border-slate-200 bg-white p-3">
-              <div className="mb-2 flex items-center justify-between">
+            <div className="rounded-lg border border-slate-200 bg-white p-4">
+              <div className="mb-3 flex items-center justify-between">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Terms</p>
                 <Button size="sm" variant="outline" onClick={() => setTerms((prev) => [...prev, { name: "", sessionName: "", status: "DRAFT" }])}>Add Term</Button>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {terms.map((item, index) => (
-                  <div key={`term-${index}`} className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_1fr_140px_auto_auto]">
+                  <div key={`term-${index}`} className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_1fr_140px_auto_auto]">
                     <Input value={item.name} onChange={(e) => setTerms((prev) => prev.map((row, i) => (i === index ? { ...row, name: e.target.value } : row)))} placeholder="Term name" />
                     <Input value={item.sessionName ?? ""} onChange={(e) => setTerms((prev) => prev.map((row, i) => (i === index ? { ...row, sessionName: e.target.value } : row)))} placeholder="Session name" />
                     <Input value={item.status ?? ""} onChange={(e) => setTerms((prev) => prev.map((row, i) => (i === index ? { ...row, status: e.target.value } : row)))} placeholder="Status" />
@@ -1075,26 +1220,26 @@ export function ConfigEngineClient({
               </div>
             </div>
 
-            <div className="rounded-lg border border-slate-200 bg-white p-3">
-              <div className="mb-2 flex items-center justify-between">
+            <div className="rounded-lg border border-slate-200 bg-white p-4">
+              <div className="mb-3 flex items-center justify-between">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Classes, Arms & Subjects</p>
                 <Button size="sm" variant="outline" onClick={() => setClasses((prev) => [...prev, { name: "", arms: [] }])}>Add Class</Button>
               </div>
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {classes.map((item, index) => (
-                  <div key={`class-${index}`} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                    <div className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_auto]">
+                  <div key={`class-${index}`} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto]">
                       <Input value={item.name} onChange={(e) => setClasses((prev) => prev.map((row, i) => (i === index ? { ...row, name: e.target.value } : row)))} placeholder="Class name" />
                       <Button size="sm" variant="outline" onClick={() => setClasses((prev) => prev.filter((_, i) => i !== index))}>Remove Class</Button>
                     </div>
 
-                    <div className="mt-3 space-y-2">
+                    <div className="mt-4 space-y-3">
                       <div className="flex items-center justify-between">
                         <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Arms</p>
                         <Button size="sm" variant="outline" onClick={() => setClasses((prev) => prev.map((row, i) => (i === index ? { ...row, arms: [...row.arms, { name: "", subjects: [] }] } : row)))}>Add Arm</Button>
                       </div>
                       {item.arms.length ? item.arms.map((arm, armIndex) => (
-                        <div key={`class-${index}-arm-${armIndex}`} className="grid grid-cols-1 gap-2 md:grid-cols-[120px_1fr_auto]">
+                        <div key={`class-${index}-arm-${armIndex}`} className="grid grid-cols-1 gap-3 md:grid-cols-[120px_1fr_auto]">
                           <Input
                             value={arm.name}
                             onChange={(e) => setClasses((prev) => prev.map((row, i) => i === index ? {
@@ -1119,9 +1264,9 @@ export function ConfigEngineClient({
                 ))}
               </div>
 
-              <div className="mt-4 space-y-2">
+              <div className="mt-5 space-y-3">
                 {subjects.map((item, index) => (
-                  <div key={`subject-${index}`} className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_1fr_1fr_auto]">
+                  <div key={`subject-${index}`} className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_1fr_1fr_auto]">
                     <Input value={item.name} onChange={(e) => setSubjects((prev) => prev.map((row, i) => (i === index ? { ...row, name: e.target.value } : row)))} placeholder="Subject name" />
                     <Input value={item.className ?? ""} onChange={(e) => setSubjects((prev) => prev.map((row, i) => (i === index ? { ...row, className: e.target.value } : row)))} placeholder="Class name" />
                     <Input value={item.armName ?? ""} onChange={(e) => setSubjects((prev) => prev.map((row, i) => (i === index ? { ...row, armName: e.target.value } : row)))} placeholder="Arm" />
@@ -1132,20 +1277,20 @@ export function ConfigEngineClient({
               </div>
             </div>
           </div>
-        </section>
+        </section> : null}
 
-        <section className="glass-soft rounded-xl p-4">
-          <h3 className="text-sm font-semibold text-slate-900">Finance Configuration</h3>
-          <p className="mt-1 text-xs text-slate-500">Define fee structures and billing defaults per school.</p>
+        {activeTab === "grading" ? <section className="glass-soft rounded-xl p-5">
+          <h3 className="text-sm font-semibold text-slate-900">Grading & Assessment Configuration</h3>
+          <p className="mt-1 text-xs text-slate-500">Define assessment weights and grading policies per class group.</p>
 
-          <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
-            <div className="mb-2 flex items-center justify-between">
+          <div className="mt-4 rounded-lg border border-slate-200 bg-white p-4">
+            <div className="mb-3 flex items-center justify-between">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Assessment Types</p>
               <Button size="sm" variant="outline" onClick={() => setAssessmentTypes((prev) => [...prev, { name: "", weight: 0 }])}>Add Assessment</Button>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-3">
               {assessmentTypes.map((item, index) => (
-                <div key={`assessment-${index}`} className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_160px_auto]">
+                <div key={`assessment-${index}`} className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_160px_auto]">
                   <Input value={item.name} onChange={(e) => setAssessmentTypes((prev) => prev.map((row, i) => (i === index ? { ...row, name: e.target.value } : row)))} placeholder="Name" />
                   <Input type="number" value={item.weight} onChange={(e) => setAssessmentTypes((prev) => prev.map((row, i) => (i === index ? { ...row, weight: Number(e.target.value) } : row)))} placeholder="Weight" />
                   <Button size="sm" variant="outline" onClick={() => setAssessmentTypes((prev) => prev.filter((_, i) => i !== index))}>Remove</Button>
@@ -1154,14 +1299,14 @@ export function ConfigEngineClient({
             </div>
           </div>
 
-          <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
-            <div className="mb-2 flex items-center justify-between">
+          <div className="mt-4 rounded-lg border border-slate-200 bg-white p-4">
+            <div className="mb-3 flex items-center justify-between">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Grading Bands</p>
               <Button size="sm" variant="outline" onClick={() => setGradingSystem((prev) => [...prev, { min: 0, grade: "", gpa: 0 }])}>Add Band</Button>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-3">
               {gradingSystem.map((item, index) => (
-                <div key={`grading-${index}`} className="grid grid-cols-1 gap-2 md:grid-cols-[120px_1fr_120px_auto]">
+                <div key={`grading-${index}`} className="grid grid-cols-1 gap-3 md:grid-cols-[120px_1fr_120px_auto]">
                   <Input type="number" value={item.min} onChange={(e) => setGradingSystem((prev) => prev.map((row, i) => (i === index ? { ...row, min: Number(e.target.value) } : row)))} placeholder="Min" />
                   <Input value={item.grade} onChange={(e) => setGradingSystem((prev) => prev.map((row, i) => (i === index ? { ...row, grade: e.target.value } : row)))} placeholder="Grade" />
                   <Input type="number" value={item.gpa} onChange={(e) => setGradingSystem((prev) => prev.map((row, i) => (i === index ? { ...row, gpa: Number(e.target.value) } : row)))} placeholder="GPA" />
@@ -1171,31 +1316,159 @@ export function ConfigEngineClient({
             </div>
           </div>
 
-          <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
-            <div className="mb-2 flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Fee Structures</p>
-              <Button size="sm" variant="outline" onClick={() => setFeeStructures((prev) => [...prev, { category: "", name: "", amount: 0, className: "", isActive: true }])}>Add Fee</Button>
+          <div className="mt-4 rounded-lg border border-slate-200 bg-white p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Per Class Group Grading Policies</p>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  setClassGroupPolicies((prev) => [
+                    ...prev,
+                    {
+                      groupName: "",
+                      caWeight: 40,
+                      examWeight: 60,
+                      passMark: 50,
+                      promotionRule: "Promote if average >= pass mark",
+                      gradeBandsText: "70:A:5\n60:B:4\n50:C:3\n45:D:2\n0:F:0",
+                      attendanceGradeBandsText: "95:A:5\n85:B:4\n75:C:3\n60:D:2\n0:F:0",
+                      assessmentComponentsText: "Cognitive:100\nAffective:100\nPsychomotor:100",
+                    },
+                  ])
+                }
+              >
+                Add Group Policy
+              </Button>
             </div>
-            <div className="space-y-2">
-              {feeStructures.map((item, index) => (
-                <div key={`fee-${index}`} className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_1fr_140px_1fr_auto_auto]">
-                  <Input value={item.category} onChange={(e) => setFeeStructures((prev) => prev.map((row, i) => (i === index ? { ...row, category: e.target.value } : row)))} placeholder="Category" />
-                  <Input value={item.name} onChange={(e) => setFeeStructures((prev) => prev.map((row, i) => (i === index ? { ...row, name: e.target.value } : row)))} placeholder="Fee Name" />
-                  <Input type="number" value={item.amount} onChange={(e) => setFeeStructures((prev) => prev.map((row, i) => (i === index ? { ...row, amount: Number(e.target.value) } : row)))} placeholder="Amount" />
-                  <Input value={item.className ?? ""} onChange={(e) => setFeeStructures((prev) => prev.map((row, i) => (i === index ? { ...row, className: e.target.value } : row)))} placeholder="Class (optional)" />
-                  <label className="inline-flex items-center gap-1 text-xs text-slate-600">
-                    <input type="checkbox" checked={item.isActive !== false} onChange={(e) => setFeeStructures((prev) => prev.map((row, i) => (i === index ? { ...row, isActive: e.target.checked } : row)))} />
-                    Active
-                  </label>
-                  <Button size="sm" variant="outline" onClick={() => setFeeStructures((prev) => prev.filter((_, i) => i !== index))}>Remove</Button>
+            <p className="mb-3 text-xs text-slate-500">Use format min:grade:gpa for bands and name:maxScore for assessments.</p>
+            <div className="space-y-4">
+              {classGroupPolicies.map((item, index) => (
+                <div key={`group-policy-${index}`} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_120px_120px_120px_auto]">
+                    <Input
+                      value={item.groupName}
+                      onChange={(e) =>
+                        setClassGroupPolicies((prev) => prev.map((row, i) => (i === index ? { ...row, groupName: e.target.value } : row)))
+                      }
+                      placeholder="Class group name (e.g. Prenursery, Primary)"
+                    />
+                    <Input
+                      type="number"
+                      value={item.caWeight}
+                      onChange={(e) =>
+                        setClassGroupPolicies((prev) => prev.map((row, i) => (i === index ? { ...row, caWeight: Number(e.target.value) } : row)))
+                      }
+                      placeholder="CA %"
+                    />
+                    <Input
+                      type="number"
+                      value={item.examWeight}
+                      onChange={(e) =>
+                        setClassGroupPolicies((prev) => prev.map((row, i) => (i === index ? { ...row, examWeight: Number(e.target.value) } : row)))
+                      }
+                      placeholder="Exam %"
+                    />
+                    <Input
+                      type="number"
+                      value={item.passMark}
+                      onChange={(e) =>
+                        setClassGroupPolicies((prev) => prev.map((row, i) => (i === index ? { ...row, passMark: Number(e.target.value) } : row)))
+                      }
+                      placeholder="Pass Mark"
+                    />
+                    <Button size="sm" variant="outline" onClick={() => setClassGroupPolicies((prev) => prev.filter((_, i) => i !== index))}>Remove</Button>
+                  </div>
+
+                  <Input
+                    className="mt-3"
+                    value={item.promotionRule ?? ""}
+                    onChange={(e) =>
+                      setClassGroupPolicies((prev) => prev.map((row, i) => (i === index ? { ...row, promotionRule: e.target.value } : row)))
+                    }
+                    placeholder="Promotion Rule"
+                  />
+
+                  <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
+                    <Textarea
+                      value={item.gradeBandsText}
+                      onChange={(e) =>
+                        setClassGroupPolicies((prev) => prev.map((row, i) => (i === index ? { ...row, gradeBandsText: e.target.value } : row)))
+                      }
+                      className="min-h-24 text-xs"
+                      placeholder="Grade bands: min:grade:gpa"
+                    />
+                    <Textarea
+                      value={item.attendanceGradeBandsText}
+                      onChange={(e) =>
+                        setClassGroupPolicies((prev) => prev.map((row, i) => (i === index ? { ...row, attendanceGradeBandsText: e.target.value } : row)))
+                      }
+                      className="min-h-24 text-xs"
+                      placeholder="Attendance bands: min:grade:gpa"
+                    />
+                    <Textarea
+                      value={item.assessmentComponentsText}
+                      onChange={(e) =>
+                        setClassGroupPolicies((prev) => prev.map((row, i) => (i === index ? { ...row, assessmentComponentsText: e.target.value } : row)))
+                      }
+                      className="min-h-24 text-xs"
+                      placeholder="Assessments: name:maxScore"
+                    />
+                  </div>
                 </div>
               ))}
+              {classGroupPolicies.length === 0 ? <p className="text-xs text-slate-500">No class group policies yet.</p> : null}
             </div>
           </div>
-        </section>
-      </div>
 
-      <section className="glass-soft rounded-xl p-4">
+        </section> : null}
+      </div> : null}
+
+      {activeTab === "fees" ? <section className="glass-soft rounded-xl p-5">
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-900">Fee Structures</h3>
+            <p className="mt-1 text-xs text-slate-500">Create clear fee items with category, amount, and optional class targeting.</p>
+          </div>
+          <Button size="sm" variant="outline" onClick={() => setFeeStructures((prev) => [...prev, { category: "", name: "", amount: 0, className: "", isActive: true }])}>Add Fee Item</Button>
+        </div>
+
+        <div className="mt-5 space-y-4">
+          {feeStructures.map((item, index) => (
+            <div key={`fee-${index}`} className="rounded-lg border border-slate-200 bg-white p-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                  <p className="mb-1 text-xs font-medium text-slate-600">Category</p>
+                  <Input value={item.category} onChange={(e) => setFeeStructures((prev) => prev.map((row, i) => (i === index ? { ...row, category: e.target.value } : row)))} placeholder="e.g. Tuition" />
+                </div>
+                <div>
+                  <p className="mb-1 text-xs font-medium text-slate-600">Fee Name</p>
+                  <Input value={item.name} onChange={(e) => setFeeStructures((prev) => prev.map((row, i) => (i === index ? { ...row, name: e.target.value } : row)))} placeholder="e.g. First Term Tuition" />
+                </div>
+                <div>
+                  <p className="mb-1 text-xs font-medium text-slate-600">Amount</p>
+                  <Input type="number" value={item.amount} onChange={(e) => setFeeStructures((prev) => prev.map((row, i) => (i === index ? { ...row, amount: Number(e.target.value) } : row)))} placeholder="Amount" />
+                </div>
+                <div>
+                  <p className="mb-1 text-xs font-medium text-slate-600">Class (Optional)</p>
+                  <Input value={item.className ?? ""} onChange={(e) => setFeeStructures((prev) => prev.map((row, i) => (i === index ? { ...row, className: e.target.value } : row)))} placeholder="e.g. Grade 5" />
+                </div>
+              </div>
+
+              <div className="mt-4 flex items-center justify-between">
+                <label className="inline-flex items-center gap-2 text-xs text-slate-600">
+                  <input type="checkbox" checked={item.isActive !== false} onChange={(e) => setFeeStructures((prev) => prev.map((row, i) => (i === index ? { ...row, isActive: e.target.checked } : row)))} />
+                  Active Fee Item
+                </label>
+                <Button size="sm" variant="outline" onClick={() => setFeeStructures((prev) => prev.filter((_, i) => i !== index))}>Remove</Button>
+              </div>
+            </div>
+          ))}
+          {feeStructures.length === 0 ? <p className="text-xs text-slate-500">No fee items yet.</p> : null}
+        </div>
+      </section> : null}
+
+      {activeTab === "portal" ? <section className="glass-soft rounded-xl p-5">
         <h3 className="text-sm font-semibold text-slate-900">Portal Visibility Configuration</h3>
         <p className="mt-1 text-xs text-slate-500">Control which portals are available to each school.</p>
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
@@ -1236,24 +1509,26 @@ export function ConfigEngineClient({
             In-App Notifications
           </label>
         </div>
-      </section>
+      </section> : null}
 
-      <section className="glass-soft rounded-xl p-4">
+      {activeTab === "templates" ? <section className="glass-soft rounded-xl p-5">
         <h3 className="text-sm font-semibold text-slate-900">Result Templates</h3>
-        <p className="mt-1 text-xs text-slate-500">Manage dynamic report card templates by level.</p>
-        <div className="mt-2 space-y-2">
+        <p className="mt-1 text-xs text-slate-500">Manage dynamic report card templates by level, class group, or class.</p>
+        <div className="mt-3 space-y-3">
           {resultTemplates.map((item, index) => (
-            <div key={`result-template-${index}`} className="rounded-lg border border-slate-200 bg-white p-2">
-              <div className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_1fr_auto_auto]">
+            <div key={`result-template-${index}`} className="rounded-lg border border-slate-200 bg-white p-3">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_1fr_1fr_1fr_auto_auto]">
                 <Input value={item.name} onChange={(e) => setResultTemplates((prev) => prev.map((row, i) => (i === index ? { ...row, name: e.target.value } : row)))} placeholder="Template name" />
                 <Input value={item.level ?? ""} onChange={(e) => setResultTemplates((prev) => prev.map((row, i) => (i === index ? { ...row, level: e.target.value } : row)))} placeholder="Level (Nursery, Primary, Secondary)" />
+                <Input value={item.classGroupName ?? ""} onChange={(e) => setResultTemplates((prev) => prev.map((row, i) => (i === index ? { ...row, classGroupName: e.target.value } : row)))} placeholder="Class group (optional)" />
+                <Input value={item.className ?? ""} onChange={(e) => setResultTemplates((prev) => prev.map((row, i) => (i === index ? { ...row, className: e.target.value } : row)))} placeholder="Class (optional)" />
                 <label className="inline-flex items-center gap-1 text-xs text-slate-600">
                   <input type="checkbox" checked={item.isDefault === true} onChange={(e) => setResultTemplates((prev) => prev.map((row, i) => (i === index ? { ...row, isDefault: e.target.checked } : row)))} />
                   Default
                 </label>
                 <Button size="sm" variant="outline" onClick={() => setResultTemplates((prev) => prev.filter((_, i) => i !== index))}>Remove</Button>
               </div>
-              <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-[auto_1fr]">
+              <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-[auto_1fr]">
                 <label className="inline-flex items-center gap-2 text-xs text-slate-600">
                   <input type="checkbox" checked={item.layoutHeader} onChange={(e) => setResultTemplates((prev) => prev.map((row, i) => (i === index ? { ...row, layoutHeader: e.target.checked } : row)))} />
                   Show Header
@@ -1262,11 +1537,11 @@ export function ConfigEngineClient({
               </div>
             </div>
           ))}
-          <Button size="sm" variant="outline" onClick={() => setResultTemplates((prev) => [...prev, { name: "", level: "", isDefault: false, layoutHeader: true, layoutSectionsText: "bio, performance" }])}>Add Result Template</Button>
+          <Button size="sm" variant="outline" onClick={() => setResultTemplates((prev) => [...prev, { name: "", level: "", classGroupName: "", className: "", isDefault: false, layoutHeader: true, layoutSectionsText: "bio, performance" }])}>Add Result Template</Button>
         </div>
-      </section>
+      </section> : null}
 
-      <section className="glass-soft rounded-xl p-4">
+      {activeTab === "communication" ? <section className="glass-soft rounded-xl p-5">
         <h3 className="text-sm font-semibold text-slate-900">Communication Templates</h3>
         <div className="mt-2 grid gap-3 xl:grid-cols-2">
           <div>
@@ -1309,9 +1584,9 @@ export function ConfigEngineClient({
             </div>
           </div>
         </div>
-      </section>
+      </section> : null}
 
-      <section className="glass-soft rounded-xl p-4">
+      {activeTab === "operations" ? <section className="glass-soft rounded-xl p-4">
         <h3 className="text-sm font-semibold text-slate-900">Operations Rules & Templates</h3>
         <div className="mt-2 grid gap-3 xl:grid-cols-3">
           <div>
@@ -1486,9 +1761,9 @@ export function ConfigEngineClient({
             </div>
           </div>
         </div>
-      </section>
+      </section> : null}
 
-      <section className="glass-soft rounded-xl p-4">
+      {activeTab === "channels" ? <section className="glass-soft rounded-xl p-4">
         <h3 className="text-sm font-semibold text-slate-900">Finance Channels & Governance</h3>
         <div className="mt-2 grid gap-3 xl:grid-cols-2">
           <div>
@@ -1528,9 +1803,9 @@ export function ConfigEngineClient({
             </div>
           </div>
         </div>
-      </section>
+      </section> : null}
 
-      <section className="glass-soft rounded-xl p-4">
+      {activeTab === "release" ? <section className="glass-soft rounded-xl p-4">
         <div className="flex flex-wrap items-end gap-2">
           <div className="min-w-[280px] flex-1">
             <p className="text-xs uppercase tracking-wide text-slate-500">Release Notes</p>
@@ -1540,9 +1815,9 @@ export function ConfigEngineClient({
           <Button variant="outline" onClick={refreshVersions} disabled={isRefreshing}>{isRefreshing ? "Refreshing..." : "Refresh Versions"}</Button>
         </div>
         {status ? <p className="mt-2 text-sm text-slate-600">{status}</p> : null}
-      </section>
+      </section> : null}
 
-      <section className="glass-soft rounded-xl p-4">
+      {activeTab === "release" ? <section className="glass-soft rounded-xl p-4">
         <h3 className="text-sm font-semibold text-slate-900">Version History</h3>
         <div className="mt-3 space-y-2">
           {versions.map((version) => (
@@ -1560,7 +1835,7 @@ export function ConfigEngineClient({
             </div>
           ))}
         </div>
-      </section>
+      </section> : null}
     </div>
   );
 }

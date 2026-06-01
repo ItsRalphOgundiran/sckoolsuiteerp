@@ -43,14 +43,14 @@ export function buildSuperAdminModel(params: {
     subtitle: "Unified visibility across schools, subscriptions, and revenue.",
     modules: ["Schools", "Subscription Plans", "Billing", "Platform Users", "Support Tickets", "Platform Reports", "Announcements", "Global Settings"],
     stats: [
-      { label: "Total Schools", value: String(params.schools.length), hint: "Institutions onboarded", trend: "+6.2%" },
-      { label: "Active Subscriptions", value: String(activeSchools), hint: "Currently billing", trend: "+2.1%" },
+      { label: "Total Schools", value: String(params.schools.length), hint: "Institutions onboarded" },
+      { label: "Active Subscriptions", value: String(activeSchools), hint: "Currently billing" },
       { label: "Expired Subscriptions", value: String(expired), hint: "Need renewal" },
       { label: "Platform Revenue", value: naira(params.totalRevenue), hint: "Collected across platform" },
       { label: "Total Students", value: String(params.totalStudents), hint: "Across all schools" },
       { label: "Total Teachers", value: String(params.totalTeachers), hint: "Across all schools" },
       { label: "Pending Renewals", value: String(expired), hint: "Action required" },
-      { label: "Support Tickets", value: "9", hint: "Open queue" },
+      { label: "Avg Students/School", value: String(params.schools.length ? Math.round(params.totalStudents / params.schools.length) : 0), hint: "Enrollment density" },
     ],
     quickActions: [
       { label: "Add New School", href: "/super-admin/dashboard" },
@@ -70,13 +70,15 @@ export function buildSuperAdminModel(params: {
       time: formatDate(school.createdAt),
     })),
     tasks: [
-      { id: "renewals", title: "Review expiring plans", detail: "Subscription renewals pending", time: "Today" },
-      { id: "support", title: "Reply support queue", detail: "SLA response target under 2h", time: "2h" },
+      { id: "renewals", title: "Schools needing activation", detail: `${expired} schools inactive`, time: "Now" },
+      { id: "growth", title: "Onboarding opportunities", detail: `${params.schools.length} schools currently tracked`, time: "Today" },
     ],
-    announcements: [
-      { id: "p1", title: "Platform maintenance", detail: "Scheduled for weekend 2:00 AM", time: "Soon" },
-      { id: "p2", title: "New billing analytics", detail: "Finance widget improvements deployed", time: "Live" },
-    ],
+    announcements: params.schools.slice(0, 2).map((school) => ({
+      id: `school-${school.id}`,
+      title: school.name,
+      detail: `${school.students.length} students • ${school.users.length} users`,
+      time: formatDate(school.createdAt),
+    })),
     tableTitle: "Recent Platform Signups",
     tableRows: params.schools.map((school) => ({
       id: school.id,

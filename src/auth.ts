@@ -34,9 +34,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return session;
     },
     async redirect({ url, baseUrl }) {
-      if (url.startsWith("/")) return `${baseUrl}${url}`;
-      if (url.startsWith(baseUrl)) return url;
-      return baseUrl;
+      const preferredBaseUrl =
+        process.env.NEXT_PUBLIC_APP_URL?.trim() ||
+        process.env.APP_URL?.trim() ||
+        process.env.NEXTAUTH_URL?.trim() ||
+        baseUrl;
+
+      const activeBaseUrl = baseUrl.includes("localhost") ? preferredBaseUrl : baseUrl;
+
+      if (url.startsWith("/")) return `${activeBaseUrl}${url}`;
+      if (url.startsWith(activeBaseUrl)) return url;
+      return activeBaseUrl;
     },
   },
   providers: [

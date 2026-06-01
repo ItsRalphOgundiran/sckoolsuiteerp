@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import {
   BookOpen,
@@ -17,7 +18,8 @@ import { SetupRequiredScreen } from "@/components/setup-required-screen";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireRole } from "@/lib/auth-guards";
 import { getCoreSchoolDataByContext, getCurrentSchoolByUser, getUserAcademicContext } from "@/lib/data";
-import { formatDate, naira } from "@/lib/utils";
+import { isOptionalFeeItem } from "@/lib/invoice-contest";
+import { formatDate, humanizeEnum, naira } from "@/lib/utils";
 import { ParentInvoiceHub } from "@/app/parent/_components/parent-invoice-hub";
 import { ParentMessagesPanel } from "@/app/parent/_components/parent-messages-panel";
 import { ParentComplaintsPanel } from "@/app/parent/_components/parent-complaints-panel";
@@ -25,6 +27,8 @@ import { ParentProfilePanel } from "@/app/parent/_components/parent-profile-pane
 import { SchoolCalendarView } from "@/app/parent/_components/school-calendar-view";
 import { ParentResultsPanel } from "@/app/parent/_components/parent-results-panel";
 import { ParentLmsPanel } from "@/app/parent/_components/parent-lms-panel";
+import { calculateGradeFromBands } from "@/lib/grades";
+import { getActiveSchoolConfig } from "@/lib/school-config";
 
 const allowed = ["profile", "children", "fees", "payments", "attendance", "results", "report-cards", "school-calendar", "messages", "complaints", "announcements", "lms"] as const;
 type AllowedSection = (typeof allowed)[number];
@@ -32,13 +36,13 @@ type AllowedSection = (typeof allowed)[number];
 const tabs: Record<AllowedSection, { title: string; description: string; icon: React.ReactNode }> = {
   profile: { title: "Profile & Settings", description: "Update parent profile details and emergency contact records.", icon: <User className="h-4 w-4" /> },
   children: { title: "Linked Children", description: "Comprehensive child portfolio: biodata, academics, attendance, and fee standing.", icon: <GraduationCap className="h-4 w-4" /> },
-  fees: { title: "Fees & Invoices", description: "Invoice center with filters, fee breakdown, and payment-notice workflow.", icon: <Wallet className="h-4 w-4" /> },
+  fees: { title: "Fees & Bills", description: "Bill center with filters, fee breakdown, and payment-notice workflow.", icon: <Wallet className="h-4 w-4" /> },
   payments: { title: "Receipts", description: "Confirmed payment receipts and printable proof of payment.", icon: <Receipt className="h-4 w-4" /> },
   attendance: { title: "Attendance", description: "Attendance calendar/list with percentage and punctuality rating.", icon: <CalendarCheck className="h-4 w-4" /> },
   results: { title: "Results", description: "Term result summaries, GPA, comments, and subject performance tables.", icon: <FileBarChart className="h-4 w-4" /> },
   "report-cards": { title: "Report Cards", description: "Open and print full report cards for each child.", icon: <FileBarChart className="h-4 w-4" /> },
   "school-calendar": { title: "School Calendar", description: "Active session/term timeline and key resumption dates.", icon: <Clock3 className="h-4 w-4" /> },
-  messages: { title: "Messages", description: "Send local messages to school/admin/teacher with status placeholders.", icon: <Megaphone className="h-4 w-4" /> },
+  messages: { title: "Messages", description: "Send tracked messages to school/admin/teacher and monitor status.", icon: <Megaphone className="h-4 w-4" /> },
   complaints: { title: "Complaints", description: "Submit and track complaints to school management and support desks.", icon: <Megaphone className="h-4 w-4" /> },
   announcements: { title: "Announcements", description: "Official school announcements by audience and date.", icon: <Megaphone className="h-4 w-4" /> },
   lms: { title: "LMS Monitoring", description: "Lessons, assignments, teacher notes, and progress indicators.", icon: <BookOpen className="h-4 w-4" /> },
@@ -60,6 +64,7 @@ export default async function ParentSectionPage({ params }: { params: Promise<{ 
   }
 
   const context = await getUserAcademicContext(profile.schoolId, user.id);
+  const schoolId = profile.schoolId;
   const core = await getCoreSchoolDataByContext(profile.schoolId, {
     sessionId: context.session?.id,
     termId: context.term?.id,
@@ -85,57 +90,87 @@ export default async function ParentSectionPage({ params }: { params: Promise<{ 
   const assignments = core.assignments.filter((assignment) => assignment.studentId && childIds.has(assignment.studentId));
   const lessons = core.lessons.filter((lesson) => children.some((child) => child.classId && child.classId === lesson.classId));
 
-  const messageSettings = await prisma.schoolSetting.findMany({
-    where: {
-      schoolId: profile.schoolId,
-      key: { startsWith: `parent_message_${parentProfile.id}_` },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 50,
-  });
+  const prismaClient = prisma as unknown as {
+    parentMessage?: {
+      findMany: (args: {
+        where: { schoolId: string; parentId: string };
+        orderBy: { createdAt: "desc" };
+        take: number;
+      }) => Promise<Array<{ id: string; recipient: string; subject: string; message: string; status: string; createdAt: Date }>>;
+    };
+    parentComplaint?: {
+      findMany: (args: {
+        where: { schoolId: string; parentId: string };
+        orderBy: { createdAt: "desc" };
+        take: number;
+      }) => Promise<Array<{ id: string; category: string; subject: string; complaint: string; status: string; createdAt: Date }>>;
+    };
+  };
 
-  const parentMessages = messageSettings
-    .map((item) => {
-      try {
-        return JSON.parse(item.value) as { id: string; recipient: string; subject: string; message: string; status: string; createdAt: string };
-      } catch {
-        return null;
-      }
-    })
-    .filter((item): item is { id: string; recipient: string; subject: string; message: string; status: string; createdAt: string } => Boolean(item));
+  const [parentMessagesRaw, parentComplaintsRaw] = await Promise.all([
+    prismaClient.parentMessage?.findMany
+      ? prismaClient.parentMessage.findMany({
+          where: { schoolId: profile.schoolId, parentId: parentProfile.id },
+          orderBy: { createdAt: "desc" },
+          take: 100,
+        })
+      : Promise.resolve([]),
+    prismaClient.parentComplaint?.findMany
+      ? prismaClient.parentComplaint.findMany({
+          where: { schoolId: profile.schoolId, parentId: parentProfile.id },
+          orderBy: { createdAt: "desc" },
+          take: 100,
+        })
+      : Promise.resolve([]),
+  ]);
 
-  const complaintSettings = await prisma.schoolSetting.findMany({
-    where: {
-      schoolId: profile.schoolId,
-      key: { startsWith: `parent_complaint_${parentProfile.id}_` },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 50,
-  });
+  const parentMessages = parentMessagesRaw.map((item) => ({
+    id: item.id,
+    recipient: item.recipient,
+    subject: item.subject,
+    message: item.message,
+    status: item.status,
+    createdAt: item.createdAt.toISOString(),
+  }));
 
-  const parentComplaints = complaintSettings
-    .map((item) => {
-      try {
-        return JSON.parse(item.value) as { id: string; category: string; subject: string; complaint: string; status: string; createdAt: string };
-      } catch {
-        return null;
-      }
-    })
-    .filter((item): item is { id: string; category: string; subject: string; complaint: string; status: string; createdAt: string } => Boolean(item));
+  const parentComplaints = parentComplaintsRaw.map((item) => ({
+    id: item.id,
+    category: item.category,
+    subject: item.subject,
+    complaint: item.complaint,
+    status: item.status,
+    createdAt: item.createdAt.toISOString(),
+  }));
 
   const [results, receipts] = await Promise.all([
-    prisma.result.findMany({
-      where: {
-        schoolId: profile.schoolId,
+    (async () => {
+      const whereBase = {
+        schoolId,
         studentId: { in: Array.from(childIds) },
         ...(context.session?.id ? { sessionId: context.session.id } : {}),
         ...(context.term?.id ? { termId: context.term.id } : {}),
-      },
-      include: { student: { include: { user: true, class: true } }, term: true, session: true },
-      orderBy: { createdAt: "desc" },
-    }),
+      };
+
+      try {
+        return await prisma.result.findMany({
+          where: {
+            ...whereBase,
+            status: { in: ["PUBLISHED"] },
+          },
+          include: { student: { include: { user: true, class: true } }, term: true, session: true },
+          orderBy: { createdAt: "desc" },
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "";
+        if (!message.includes("Unknown argument `status`")) {
+          throw error;
+        }
+
+        return [];
+      }
+    })(),
     prisma.receipt.findMany({
-      where: { schoolId: profile.schoolId, OR: [{ parentId: parentProfile.id }, { studentId: { in: Array.from(childIds) } }] },
+      where: { schoolId, OR: [{ parentId: parentProfile.id }, { studentId: { in: Array.from(childIds) } }] },
       include: { student: { include: { user: true } }, parent: { include: { user: true } }, school: { include: { branding: true } }, invoice: true },
       orderBy: { createdAt: "desc" },
     }),
@@ -197,31 +232,52 @@ export default async function ParentSectionPage({ params }: { params: Promise<{ 
     status: invoice.status,
     dueDate: invoice.dueDate?.toISOString() ?? null,
     paymentInstructions: invoice.paymentInstructions,
-    items: invoice.items.map((item) => ({ id: item.id, name: item.feeItem.name, amount: item.amount })),
+    items: invoice.items.map((item) => ({
+      id: item.id,
+      groupName: item.feeItem.feeGroup?.name ?? item.feeItem.category,
+      name: item.feeItem.name,
+      amount: item.amount,
+      optional: isOptionalFeeItem({ category: item.feeItem.category, name: item.feeItem.name }),
+    })),
   }));
 
-  const resultPanelData = children.map((child) => {
-    const latest = results.find((result) => result.studentId === child.id) ?? null;
-    const childScores = scores.filter((score) => score.studentId === child.id);
+  const activeConfig = core.school ? await getActiveSchoolConfig(core.school.id) : null;
+  const gradingBands = (activeConfig?.config.academic.gradingSystem ?? []).map((band) => ({
+    min: Number(band.min),
+    grade: band.grade,
+    gpa: Number(band.gpa),
+  }));
 
-    return {
+  const resultPanelData = children.flatMap((child) => {
+    const latest = results.find((result) => result.studentId === child.id) ?? null;
+    if (!latest) {
+      return [];
+    }
+
+    const childScores = latest ? scores.filter((score) => score.studentId === child.id) : [];
+    const termAverage = latest && childScores.length
+      ? childScores.reduce((sum, score) => sum + score.total, 0) / childScores.length
+      : null;
+    const termGradeMeta = termAverage !== null ? calculateGradeFromBands(termAverage, gradingBands) : null;
+
+    return [{
       studentId: child.id,
       studentName: child.user.name,
       className: child.class?.name ?? "Class not assigned",
       termName: latest?.term.name ?? (context.term?.name ?? ""),
       sessionName: latest?.session.name ?? (context.session?.name ?? ""),
-      termPercentage: latest?.termPercentage ?? null,
-      termGrade: latest?.termGrade ?? null,
-      termGpa: latest?.termGpa ?? null,
+      termPercentage: termAverage ?? latest?.termPercentage ?? null,
+      termGrade: termGradeMeta?.grade ?? latest?.termGrade ?? null,
+      termGpa: termGradeMeta?.gpa ?? latest?.termGpa ?? null,
       classTeacherComment: latest?.classTeacherComment ?? null,
       principalComment: latest?.principalComment ?? null,
       subjects: childScores.map((score) => ({
         id: score.id,
         subjectName: score.subject.name,
         total: score.total,
-        grade: score.grade,
+        grade: calculateGradeFromBands(score.total, gradingBands).grade,
       })),
-    };
+    }];
   });
 
   const lmsChildren = children.map((child) => ({
@@ -288,6 +344,8 @@ export default async function ParentSectionPage({ params }: { params: Promise<{ 
       classId: live.classId,
       subjectName: live.subject?.name ?? "Subject",
     }));
+
+  const childrenWithPublishedResults = children.filter((child) => results.some((item) => item.studentId === child.id));
 
   return (
     <PortalShell
@@ -410,9 +468,9 @@ export default async function ParentSectionPage({ params }: { params: Promise<{ 
 
       {sectionKey === "report-cards" ? (
         <section className="grid gap-3 xl:grid-cols-2">
-          {children.length ? children.map((child) => {
+          {childrenWithPublishedResults.length ? childrenWithPublishedResults.map((child) => {
             const latest = results.find((item) => item.studentId === child.id);
-            const childScores = scores.filter((item) => item.studentId === child.id);
+            const childScores = latest ? scores.filter((item) => item.studentId === child.id) : [];
             const topSubjects = [...childScores].sort((a, b) => b.total - a.total).slice(0, 4);
             const average = childScores.length ? childScores.reduce((sum, item) => sum + item.total, 0) / childScores.length : 0;
 
@@ -421,9 +479,12 @@ export default async function ParentSectionPage({ params }: { params: Promise<{ 
                 <CardHeader className="bg-gradient-to-r from-slate-900 to-slate-700 text-white">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
-                      <img
+                      <Image
                         src={childPhotoUrl(child.passportUrl, child.user.name)}
                         alt={`${child.user.name} profile photo`}
+                        width={48}
+                        height={48}
+                        unoptimized
                         className="h-12 w-12 rounded-full border border-white/30 bg-white/10 object-cover"
                       />
                       <div>
@@ -489,7 +550,7 @@ export default async function ParentSectionPage({ params }: { params: Promise<{ 
             );
           }) : (
             <Card className="glass-panel">
-              <CardContent className="p-6 text-sm text-slate-500">No linked children found.</CardContent>
+              <CardContent className="p-6 text-sm text-slate-500">No published result is available yet.</CardContent>
             </Card>
           )}
         </section>
@@ -636,7 +697,7 @@ export default async function ParentSectionPage({ params }: { params: Promise<{ 
                                     : "bg-rose-100 text-rose-700"
                               }`}
                             >
-                              {item.status}
+                              {humanizeEnum(item.status)}
                             </span>
                           </td>
                         </tr>
@@ -659,9 +720,9 @@ export default async function ParentSectionPage({ params }: { params: Promise<{ 
             {core.announcements.length ? core.announcements.slice(0, 20).map((item) => (
               <div key={item.id} className="glass-soft rounded-xl p-3">
                 <p className="font-medium">{item.title}</p>
-                <p className="text-xs text-slate-500">Date: {formatDate(item.createdAt)} • Audience: {item.audience}</p>
+                <p className="text-xs text-slate-500">Date: {formatDate(item.createdAt)} • Audience: {humanizeEnum(item.audience)}</p>
                 <p>{item.body}</p>
-                <p className="text-xs text-slate-500">Attachment: Placeholder</p>
+                <p className="text-xs text-slate-500">Attachment: Not provided</p>
               </div>
             )) : <p className="text-slate-500">No announcements published yet.</p>}
           </CardContent>
@@ -832,7 +893,7 @@ export default async function ParentSectionPage({ params }: { params: Promise<{ 
                     <div key={item.id} className="rounded-xl border border-amber-200 bg-white px-4 py-3">
                       <div className="flex items-start justify-between gap-2">
                         <p className="text-sm font-medium text-slate-900">{item.title}</p>
-                        <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">{item.audience}</span>
+                        <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">{humanizeEnum(item.audience)}</span>
                       </div>
                       <p className="mt-1 text-xs text-slate-600 line-clamp-2">{item.body}</p>
                       <p className="mt-1 text-[11px] text-slate-400">{formatDate(item.createdAt)}</p>

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { PortalShell } from "@/components/portal-shell";
 import { SetupRequiredScreen } from "@/components/setup-required-screen";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { InvoiceContestReviewPanel } from "@/components/invoice-contest-review-panel";
 import { requireRole } from "@/lib/auth-guards";
 import { getCoreSchoolDataByContext, getCurrentSchoolByUser, getUserAcademicContext, statusLabel } from "@/lib/data";
 import { formatDate, naira } from "@/lib/utils";
@@ -22,7 +23,7 @@ const aliases: Record<AllowedSection, Exclude<AllowedSection, "fees">> = {
 
 const titles: Record<Exclude<AllowedSection, "fees">, string> = {
   "fee-setup": "Fee Setup",
-  invoices: "Invoices",
+  invoices: "Bills",
   payments: "Payments",
   receipts: "Receipts",
   debtors: "Debtors",
@@ -32,7 +33,7 @@ const titles: Record<Exclude<AllowedSection, "fees">, string> = {
 
 const descriptions: Record<Exclude<AllowedSection, "fees">, string> = {
   "fee-setup": "Configure fee items and billing structure.",
-  invoices: "Generate and monitor invoice lifecycle.",
+  invoices: "Generate and monitor bill lifecycle.",
   payments: "Review collected, pending, and channel split payments.",
   receipts: "Audit issued receipts and proof of payment records.",
   debtors: "Track outstanding balances and follow-up priority.",
@@ -88,19 +89,22 @@ export default async function AccountantSectionPage({ params }: { params: Promis
         );
       case "invoices":
         return (
-          <Card>
-            <CardHeader><CardTitle>Invoice Ledger</CardTitle></CardHeader>
-            <CardContent className="space-y-2 text-sm">
-                {core.invoices.slice(0, 30).map((item: InvoiceRow) => (
-                <div key={item.id} className="glass-soft rounded-xl p-3">
-                  <p className="font-medium">{item.invoiceNumber}</p>
-                  <p>{item.student.user.name} • Total: {naira(item.totalAmount)} • Balance: {naira(item.balance)}</p>
-                  <p>Status: {statusLabel(item.status)} • Due: {formatDate(item.dueDate)}</p>
-                </div>
-              ))}
-              {!core.invoices.length ? <p className="text-slate-500">No invoices generated yet.</p> : null}
-            </CardContent>
-          </Card>
+          <div className="space-y-3">
+            <InvoiceContestReviewPanel currentRole={user.role} />
+            <Card>
+              <CardHeader><CardTitle>Bill Ledger</CardTitle></CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                  {core.invoices.slice(0, 30).map((item: InvoiceRow) => (
+                  <div key={item.id} className="glass-soft rounded-xl p-3">
+                    <p className="font-medium">{item.invoiceNumber}</p>
+                    <p>{item.student.user.name} • Total: {naira(item.totalAmount)} • Balance: {naira(item.balance)}</p>
+                    <p>Status: {statusLabel(item.status)} • Due: {formatDate(item.dueDate)}</p>
+                  </div>
+                ))}
+                {!core.invoices.length ? <p className="text-slate-500">No bills generated yet.</p> : null}
+              </CardContent>
+            </Card>
+          </div>
         );
       case "payments":
         return (
@@ -142,7 +146,7 @@ export default async function AccountantSectionPage({ params }: { params: Promis
                 {debtors.slice(0, 30).map((item: InvoiceRow) => (
                 <div key={item.id} className="glass-soft rounded-xl p-3">
                   <p className="font-medium">{item.student.user.name}</p>
-                  <p>Invoice: {item.invoiceNumber} • Outstanding: {naira(item.balance)}</p>
+                  <p>Bill: {item.invoiceNumber} • Outstanding: {naira(item.balance)}</p>
                 </div>
               ))}
               {!debtors.length ? <p className="text-slate-500">No debtors at the moment.</p> : null}
@@ -154,7 +158,7 @@ export default async function AccountantSectionPage({ params }: { params: Promis
           <Card>
             <CardHeader><CardTitle>Discounts & Adjustments</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">
-              <p>Track invoices with partial payments as active discount/adjustment indicators.</p>
+              <p>Track bills with partial payments as active discount/adjustment indicators.</p>
               {core.invoices.filter((item) => item.status === "PART_PAYMENT").slice(0, 25).map((item) => (
                 <div key={item.id} className="glass-soft rounded-xl p-3">
                   <p className="font-medium">{item.invoiceNumber}</p>
@@ -171,7 +175,7 @@ export default async function AccountantSectionPage({ params }: { params: Promis
             <Card>
               <CardHeader><CardTitle>Collection Summary</CardTitle></CardHeader>
               <CardContent className="space-y-2 text-sm">
-                <p>Total Invoiced: {naira(totalInvoiced)}</p>
+                <p>Total Billed: {naira(totalInvoiced)}</p>
                 <p>Total Collected: {naira(totalPaid)}</p>
                 <p>Total Outstanding: {naira(outstanding)}</p>
               </CardContent>
@@ -215,7 +219,7 @@ export default async function AccountantSectionPage({ params }: { params: Promis
         <Card><CardContent className="p-4"><p className="text-xs text-slate-500">Expected Revenue</p><p className="text-xl font-semibold">{naira(totalInvoiced)}</p></CardContent></Card>
         <Card><CardContent className="p-4"><p className="text-xs text-slate-500">Collected</p><p className="text-xl font-semibold">{naira(totalPaid)}</p></CardContent></Card>
         <Card><CardContent className="p-4"><p className="text-xs text-slate-500">Outstanding</p><p className="text-xl font-semibold">{naira(outstanding)}</p></CardContent></Card>
-        <Card><CardContent className="p-4"><p className="text-xs text-slate-500">Debtor Invoices</p><p className="text-xl font-semibold">{debtors.length}</p></CardContent></Card>
+        <Card><CardContent className="p-4"><p className="text-xs text-slate-500">Debtor Bills</p><p className="text-xl font-semibold">{debtors.length}</p></CardContent></Card>
       </section>
 
       {renderSection()}

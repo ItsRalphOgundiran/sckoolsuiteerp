@@ -1,12 +1,18 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MetricGrid, SimpleTable } from "@/components/dashboard-kit";
+import { InvoiceContestReviewPanel } from "@/components/invoice-contest-review-panel";
+import { AdminApprovalActions } from "./admin-approval-actions";
+import { AdminFinanceManager } from "./admin-finance-manager";
 import { PortalShell } from "@/components/portal-shell";
 import { requireRole } from "@/lib/auth-guards";
 import { getAdminOverview, getCoreSchoolDataByContext, getCurrentSchoolByUser, getUserAcademicContext } from "@/lib/data";
 import { adminModuleScopeBySection } from "@/lib/module-blueprint";
 import { getActiveSchoolConfig } from "@/lib/school-config";
+import { getSetupWizardState } from "@/lib/setup-wizard";
 import { formatDate, naira } from "@/lib/utils";
+import { prisma } from "@/lib/prisma";
 
 const allowed = [
   "dashboard",
@@ -91,19 +97,19 @@ const blueprints: Record<AllowedSection, AdminSectionBlueprint> = {
     title: "Fee Setup",
     subtitle: "Fee groups, fee structures, concessions, and billing rules.",
     metrics: [],
-    actionChips: ["Fee Group", "Structure", "Concession", "Invoice Rule"],
+    actionChips: ["Fee Group", "Structure", "Concession", "Bill Rule"],
   },
   finance: {
     title: "Finance Management",
-    subtitle: "Invoices, payments, receipts, debtors, discounts, and collections.",
+    subtitle: "Bills, payments, receipts, debtors, discounts, and collections.",
     metrics: [],
-    actionChips: ["Fee Setup", "Invoices", "Payments", "Debtors"],
+    actionChips: ["Fee Setup", "Bills", "Payments", "Debtors"],
   },
   invoices: {
-    title: "Invoice Management",
-    subtitle: "Generate bills, review balances, and track invoice status.",
+    title: "Bill Management",
+    subtitle: "Generate bills, review balances, and track bill status.",
     metrics: [],
-    actionChips: ["Generate Invoice", "View Open", "Print Invoice", "Ledger Sync"],
+    actionChips: ["Generate Bill", "View Open", "Print Bill", "Ledger Sync"],
   },
   payments: {
     title: "Payment Records",
@@ -164,13 +170,16 @@ export default async function AdminSectionPage({ params }: { params: Promise<{ s
   }
 
   const context = await getUserAcademicContext(profile.schoolId, user.id);
-  const [overview, core, activeConfig] = await Promise.all([
+  const [overview, core, activeConfig, feeGroupCount, setup] = await Promise.all([
     getAdminOverview(profile.schoolId),
     getCoreSchoolDataByContext(profile.schoolId, { sessionId: context.session?.id, termId: context.term?.id }),
     getActiveSchoolConfig(profile.schoolId),
+    prisma.feeGroup.count({ where: { schoolId: profile.schoolId, isActive: true } }),
+    getSetupWizardState(profile.schoolId),
   ]);
 
   const blueprint = blueprints[section as AllowedSection];
+  const setupLocked = !setup.status.setupCompleted && ["fees", "finance", "invoices", "results"].includes(section);
   const academic = activeConfig.config.academic as {
     sessions: Array<{ name: string; status?: string }>;
     terms: Array<{ name: string; status?: string }>;
@@ -233,19 +242,19 @@ export default async function AdminSectionPage({ params }: { params: Promise<{ s
       { label: "Teachers", value: String(overview.teachers), helper: "Subject teachers available" },
     ],
     fees: [
-      { label: "Fee Groups", value: String(finance.feeStructures.length), helper: "Configured billing rows" },
+      { label: "Fee Groups", value: String(feeGroupCount), helper: "Active groups" },
       { label: "Concessions", value: "Ready", helper: "Discount and waiver support" },
-      { label: "Invoices", value: String(core.invoices.length), helper: "Generated billing records" },
+      { label: "Bills", value: String(core.invoices.length), helper: "Generated billing records" },
       { label: "Outstanding", value: naira(overview.outstanding), helper: "Unpaid balances" },
     ],
     finance: [
-      { label: "Invoices", value: String(core.invoices.length), helper: "Billing records" },
+      { label: "Bills", value: String(core.invoices.length), helper: "Billing records" },
       { label: "Payments", value: String(core.payments.length), helper: "Payment entries" },
       { label: "Outstanding", value: naira(overview.outstanding), helper: "Balance due" },
       { label: "Fee Structures", value: String(finance.feeStructures.length), helper: "Dynamic fee setup" },
     ],
     invoices: [
-      { label: "Invoices", value: String(core.invoices.length), helper: "Generated bills" },
+      { label: "Bills", value: String(core.invoices.length), helper: "Generated bills" },
       { label: "Paid", value: naira(overview.totalPaid), helper: "Collected value" },
       { label: "Outstanding", value: naira(overview.outstanding), helper: "Open balances" },
       { label: "Receipts", value: String(core.invoices.filter((item) => item.receipt).length), helper: "Issued proof of payment" },
@@ -253,7 +262,7 @@ export default async function AdminSectionPage({ params }: { params: Promise<{ s
     payments: [
       { label: "Payments", value: String(core.payments.length), helper: "Recorded collections" },
       { label: "Collected", value: naira(overview.totalPaid), helper: "Actual receipts" },
-      { label: "Invoices", value: String(core.invoices.length), helper: "Billing queue" },
+      { label: "Bills", value: String(core.invoices.length), helper: "Billing queue" },
       { label: "Receipts", value: String(core.invoices.filter((item) => item.receipt).length), helper: "Validated payments" },
     ],
     results: [
@@ -335,25 +344,99 @@ export default async function AdminSectionPage({ params }: { params: Promise<{ s
       secondaryColor={profile.school.branding?.secondaryColor}
     >
       <section className="space-y-4">
+        {!setup.status.setupCompleted ? (
+          <Card className="border-amber-200 bg-amber-50" data-testid="setup-incomplete-banner">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="text-amber-900">
+                  School Setup — {setup.completionPercentage}% complete
+                </CardTitle>
+                <span className="rounded-full bg-amber-200 px-2 py-0.5 text-xs font-semibold text-amber-900">
+                  {setup.completionPercentage}%
+                </span>
+              </div>
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-amber-200">
+                <div className="h-1.5 rounded-full bg-amber-500" style={{ width: `${setup.completionPercentage}%` }} />
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm text-amber-900">
+              {(() => {
+                const stepLabels: Record<string, string> = {
+                  "school-profile": "School Profile",
+                  "academic-setup": "Academic Setup",
+                  "classes-arms": "Classes & Arms",
+                  "subjects": "Subjects",
+                  "grading-assessment": "Grading & Assessment",
+                  "finance-setup": "Finance Setup",
+                  "users-roles": "Users & Roles",
+                };
+                const nextStep = (["school-profile", "academic-setup", "classes-arms", "subjects", "grading-assessment", "finance-setup", "users-roles"] as const).find(
+                  (s) => !setup.checklist[s],
+                );
+                return nextStep ? (
+                  <p>Next step: <strong>{stepLabels[nextStep]}</strong></p>
+                ) : (
+                  <p>All steps complete — ready to activate.</p>
+                );
+              })()}
+              <p className="text-xs font-medium text-amber-800">
+                &#9888; Invoice generation and result publishing are locked until setup is activated.
+              </p>
+              <Link
+                href="/admin/setup"
+                className="inline-flex rounded-md border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-900 hover:bg-amber-100"
+                data-testid="banner-continue-setup"
+              >
+                Continue Setup Wizard &#8594;
+              </Link>
+            </CardContent>
+          </Card>
+        ) : null}
         <Card>
           <CardHeader>
             <CardTitle>{blueprint.title}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-sm text-slate-600">{blueprint.subtitle}</p>
-            <div className="flex flex-wrap gap-2">
-              {blueprint.actionChips.map((item) => (
-                <span key={item} className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700">
-                  {item}
-                </span>
-              ))}
-            </div>
+            {section === "fees" || section === "finance" ? null : (
+              <div className="flex flex-wrap gap-2">
+                {blueprint.actionChips.map((item) => (
+                  <span key={item} className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700">
+                    {item}
+                  </span>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
         <MetricGrid items={metrics} />
 
-        <div className="grid gap-4 xl:grid-cols-2">
+        {(section === "payments" || section === "finance") && !setupLocked ? (
+          <AdminApprovalActions mode="payments" sessionId={context.session?.id} termId={context.term?.id} />
+        ) : null}
+
+        {section === "results" && !setupLocked ? (
+          <AdminApprovalActions mode="results" sessionId={context.session?.id} termId={context.term?.id} />
+        ) : null}
+
+        {section === "invoices" && !setupLocked ? <InvoiceContestReviewPanel currentRole={user.role} /> : null}
+
+        {(section === "fees" || section === "finance") && !setupLocked ? <AdminFinanceManager /> : null}
+
+        {setupLocked ? (
+          <Card className="border-rose-200 bg-rose-50">
+            <CardHeader>
+              <CardTitle className="text-rose-900">This module is locked until setup is complete.</CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm text-rose-800">
+              Activate school setup from the setup wizard before using finance invoicing and result approval workflows.
+            </CardContent>
+          </Card>
+        ) : null}
+
+        {section === "fees" || section === "finance" ? null : (
+          <div className="grid gap-4 xl:grid-cols-2">
           <SimpleTable
             title={section === "classes" ? "Classes & Arms" : section === "subjects" ? "Subject Allocation" : section === "finance" || section === "fees" ? "Fee Structures" : "Operational Snapshot"}
             headers={["Name", "Detail", "Status"]}
@@ -378,7 +461,7 @@ export default async function AdminSectionPage({ params }: { params: Promise<{ s
               ) : section === "finance" || section === "fees" ? (
                 <>
                   <p>Fee groups, concessions, and billing structure should live in one finance bundle.</p>
-                  <p>Invoices and payment records should stay downstream from the fee engine.</p>
+                  <p>Bills and payment records should stay downstream from the fee engine.</p>
                   <p className="text-xs text-slate-500">Current outstanding balance: {naira(overview.outstanding)}.</p>
                 </>
               ) : section === "reception" ? (
@@ -402,7 +485,8 @@ export default async function AdminSectionPage({ params }: { params: Promise<{ s
               )}
             </CardContent>
           </Card>
-        </div>
+          </div>
+        )}
 
         <Card>
           <CardHeader>

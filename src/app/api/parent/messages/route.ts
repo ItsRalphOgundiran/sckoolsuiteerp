@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
+import { MessageStatus } from "@prisma/client";
+import { createAuditLog } from "@/lib/audit-log";
 import { prisma } from "@/lib/prisma";
 
 const createSchema = z.object({
@@ -21,22 +23,20 @@ export async function GET() {
 
   if (!parent) return NextResponse.json([]);
 
-  const items = await prisma.schoolSetting.findMany({
-    where: {
-      schoolId: session.user.schoolId,
-      key: { startsWith: `parent_message_${parent.id}_` },
-    },
+  const items = await prisma.parentMessage.findMany({
+    where: { schoolId: session.user.schoolId, parentId: parent.id },
     orderBy: { createdAt: "desc" },
-    take: 50,
+    take: 100,
   });
 
-  const messages = items.map((item) => {
-    try {
-      return JSON.parse(item.value);
-    } catch {
-      return null;
-    }
-  }).filter(Boolean);
+  const messages = items.map((item) => ({
+    id: item.id,
+    recipient: item.recipient,
+    subject: item.subject,
+    message: item.message,
+    status: item.status.toLowerCase(),
+    createdAt: item.createdAt.toISOString(),
+  }));
 
   return NextResponse.json(messages);
 }
@@ -60,22 +60,38 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const payload = {
-    id: `${Date.now()}`,
-    recipient: parsed.data.recipient,
-    subject: parsed.data.subject,
-    message: parsed.data.message,
-    status: "sent",
-    createdAt: new Date().toISOString(),
-  };
-
-  await prisma.schoolSetting.create({
+  const created = await prisma.parentMessage.create({
     data: {
       schoolId: session.user.schoolId,
-      key: `parent_message_${parent.id}_${Date.now()}`,
-      value: JSON.stringify(payload),
+      parentId: parent.id,
+      recipient: parsed.data.recipient,
+      subject: parsed.data.subject,
+      message: parsed.data.message,
+      status: MessageStatus.SENT,
     },
   });
 
-  return NextResponse.json({ ok: true, message: payload });
+  await createAuditLog({
+    schoolId: session.user.schoolId,
+    actorUserId: session.user.id,
+    action: "PARENT_MESSAGE_CREATED",
+    targetType: "ParentMessage",
+    targetId: created.id,
+    metadata: {
+      recipient: created.recipient,
+      subject: created.subject,
+    },
+  });
+
+  return NextResponse.json({
+    ok: true,
+    message: {
+      id: created.id,
+      recipient: created.recipient,
+      subject: created.subject,
+      message: created.message,
+      status: created.status.toLowerCase(),
+      createdAt: created.createdAt.toISOString(),
+    },
+  });
 }

@@ -1,11 +1,12 @@
 import Link from "next/link";
+import Image from "next/image";
 import { LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
-import { signOut } from "@/auth";
 import { APP_POWERED_BY } from "@/lib/constants";
 import { navByRole } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 import { AcademicContextSwitcher } from "@/components/academic-context-switcher";
 import { PortalTopbar } from "@/components/portal-topbar";
+import { signOutToLogin } from "@/app/actions/auth-actions";
 
 export function PortalShell({
   role,
@@ -69,9 +70,12 @@ export function PortalShell({
           <div className="mb-5 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
             <div className="flex flex-col items-center text-center">
               {normalizedSchoolLogoUrl ? (
-                <img
+                <Image
                   src={normalizedSchoolLogoUrl}
                   alt={`${displaySchoolName} logo`}
+                  width={56}
+                  height={56}
+                  unoptimized
                   className="h-14 w-14 rounded-xl border border-slate-200 bg-white object-contain p-2 dark:border-slate-700 dark:bg-slate-900"
                 />
               ) : (
@@ -119,13 +123,7 @@ export function PortalShell({
             </nav>
           </div>
 
-          <form
-            className="mt-4 lg:mt-6 lg:shrink-0"
-            action={async () => {
-              "use server";
-              await signOut({ redirectTo: "/login" });
-            }}
-          >
+          <form className="mt-4 lg:mt-6 lg:shrink-0" action={signOutToLogin}>
             <button className="signout-btn flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">
               <LogOut className="h-4 w-4" />
               <span className="nav-label">Sign out</span>

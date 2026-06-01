@@ -20,6 +20,24 @@ function getGrade(total: number) {
   return gradeScale.find((rule) => total >= rule.min) ?? gradeScale[gradeScale.length - 1];
 }
 
+function buildFeeItemDedupeKey(input: {
+  feeGroupId: string;
+  name: string;
+  classId?: string | null;
+  armId?: string | null;
+  sessionId: string;
+  termId: string;
+}) {
+  return [
+    input.feeGroupId,
+    input.name.trim().toLowerCase(),
+    input.classId ?? "global",
+    input.armId ?? "all-arms",
+    input.sessionId,
+    input.termId,
+  ].join("::");
+}
+
 async function upsertRole(name: RoleType) {
   return prisma.role.upsert({
     where: { name },
@@ -41,6 +59,8 @@ async function main() {
   await prisma.announcement.deleteMany();
   await prisma.schoolSetting.deleteMany();
   await prisma.feeItem.deleteMany();
+  await prisma.feeGroup.deleteMany();
+  await prisma.classArm.deleteMany();
   await prisma.subject.deleteMany();
   await prisma.student.deleteMany();
   await prisma.parent.deleteMany();
@@ -88,9 +108,6 @@ async function main() {
       bankAccountNumber: "1221809249",
       bankInstructions:
         "1. At least 70% of fees is required on resumption. 2. ICT and clubs fees are due on or before resumption. 3. Tuition and other fees are payable by cheque, bankdraft, or third-party transfer to the school account. 4. The school may exclude students without notice if fees are not paid. 5. Fees are not pro-rated regardless of resumption date.",
-      principalSignature: "Principal Signature Placeholder",
-      teacherSignature: "Class Teacher Signature Placeholder",
-      schoolStamp: "School Stamp Placeholder",
       reportHeaderText: "Knowledge. Character. Excellence.",
       receiptFooterText: "Thank you for paying promptly.",
     },
@@ -147,6 +164,14 @@ async function main() {
       schoolId: school.id,
       name: "Year 2",
       classTeacher: "Deborah Alabi",
+    },
+  });
+
+  const year2ArmA = await prisma.classArm.create({
+    data: {
+      schoolId: school.id,
+      classId: year2.id,
+      name: "A",
     },
   });
 
@@ -305,15 +330,47 @@ async function main() {
     { category: "Optional", name: "Textbooks", amount: 0, selectedByDefault: false },
   ];
 
+  const groupByCategory = new Map<string, string>();
+  for (const fee of fees) {
+    if (groupByCategory.has(fee.category)) continue;
+    const created = await prisma.feeGroup.create({
+      data: {
+        schoolId: school.id,
+        name: fee.category,
+        code: fee.category.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "general",
+        isActive: true,
+      },
+    });
+    groupByCategory.set(fee.category, created.id);
+  }
+
   const feeItems = [] as { id: string; name: string; amount: number; selectedByDefault: boolean }[];
   for (const fee of fees) {
+    const feeGroupId = groupByCategory.get(fee.category);
+    if (!feeGroupId) continue;
     const item = await prisma.feeItem.create({
       data: {
         schoolId: school.id,
+        feeGroupId,
+        sessionId: currentSession.id,
+        termId: currentTerm.id,
         classId: year2.id,
+        armId: fee.category === "Optional" ? year2ArmA.id : null,
         category: fee.category,
         name: fee.name,
+        description: `${fee.category} fee item`,
         amount: fee.amount,
+        isOptional: fee.category === "Optional",
+        dueDate: new Date("2026-01-31"),
+        sortOrder: fees.findIndex((itemFee) => itemFee.name === fee.name),
+        dedupeKey: buildFeeItemDedupeKey({
+          feeGroupId,
+          name: fee.name,
+          classId: year2.id,
+          armId: fee.category === "Optional" ? year2ArmA.id : null,
+          sessionId: currentSession.id,
+          termId: currentTerm.id,
+        }),
       },
     });
     feeItems.push({ id: item.id, name: item.name, amount: item.amount, selectedByDefault: fee.selectedByDefault });
@@ -538,8 +595,287 @@ async function main() {
     ],
   });
 
+  const schoolTwo = await prisma.school.create({
+    data: {
+      name: "Sckool Suite Pilot College",
+      email: "hello@pilotcollege.ng",
+      phone: "+234 803 111 1111",
+      address: "21 Kingsway Road, Ikeja, Lagos",
+      website: "https://pilotcollege.ng",
+      motto: "Raising Distinct Scholars",
+    },
+  });
+
+  await prisma.schoolBranding.create({
+    data: {
+      schoolId: schoolTwo.id,
+      primaryColor: "#1A365D",
+      secondaryColor: "#2F855A",
+      reportCardTheme: "premium-classic",
+      invoiceTheme: "premium-clean",
+      receiptTheme: "premium-minimal",
+      bankName: "GTBANK",
+      bankAccountName: "Pilot College",
+      bankAccountNumber: "0028010199",
+      bankInstructions: "Pay fees to GTBANK 0028010199 and upload proof for verification.",
+      reportHeaderText: "Discipline. Knowledge. Impact.",
+      receiptFooterText: "Payment acknowledged.",
+    },
+  });
+
+  const schoolTwoSession = await prisma.session.create({
+    data: {
+      schoolId: schoolTwo.id,
+      name: "2025/2026",
+      isCurrent: true,
+    },
+  });
+
+  const schoolTwoTerm = await prisma.term.create({
+    data: {
+      schoolId: schoolTwo.id,
+      sessionId: schoolTwoSession.id,
+      name: "First Term",
+      isCurrent: true,
+    },
+  });
+
+  const schoolTwoClass = await prisma.class.create({
+    data: {
+      schoolId: schoolTwo.id,
+      name: "Year 3",
+      classTeacher: "Idowu Peters",
+    },
+  });
+
+  const schoolTwoArmA = await prisma.classArm.create({
+    data: {
+      schoolId: schoolTwo.id,
+      classId: schoolTwoClass.id,
+      name: "A",
+    },
+  });
+
+  const schoolTwoAdmin = await prisma.user.create({
+    data: {
+      schoolId: schoolTwo.id,
+      roleId: roles.SCHOOL_ADMIN.id,
+      name: "Aisha Bello",
+      email: "admin.pilot@sckoolsuite.com",
+      password,
+    },
+  });
+
+  const schoolTwoAccountantUser = await prisma.user.create({
+    data: {
+      schoolId: schoolTwo.id,
+      roleId: roles.ACCOUNTANT.id,
+      name: "Kehinde Aina",
+      email: "accountant.pilot@sckoolsuite.com",
+      password,
+    },
+  });
+
+  const schoolTwoTeacherUser = await prisma.user.create({
+    data: {
+      schoolId: schoolTwo.id,
+      roleId: roles.TEACHER.id,
+      name: "Idowu Peters",
+      email: "teacher.pilot@sckoolsuite.com",
+      password,
+    },
+  });
+
+  const schoolTwoParentUser = await prisma.user.create({
+    data: {
+      schoolId: schoolTwo.id,
+      roleId: roles.PARENT.id,
+      name: "Chinwe Okafor",
+      email: "parent.pilot@sckoolsuite.com",
+      password,
+    },
+  });
+
+  const schoolTwoStudentUser = await prisma.user.create({
+    data: {
+      schoolId: schoolTwo.id,
+      roleId: roles.STUDENT.id,
+      name: "Daniel Okafor",
+      email: "student.pilot@sckoolsuite.com",
+      password,
+    },
+  });
+
+  const schoolTwoTeacher = await prisma.teacher.create({
+    data: {
+      schoolId: schoolTwo.id,
+      userId: schoolTwoTeacherUser.id,
+    },
+  });
+
+  const schoolTwoParent = await prisma.parent.create({
+    data: {
+      schoolId: schoolTwo.id,
+      userId: schoolTwoParentUser.id,
+    },
+  });
+
+  await prisma.class.update({ where: { id: schoolTwoClass.id }, data: { teacherId: schoolTwoTeacher.id } });
+
+  const schoolTwoStudent = await prisma.student.create({
+    data: {
+      schoolId: schoolTwo.id,
+      userId: schoolTwoStudentUser.id,
+      parentId: schoolTwoParent.id,
+      teacherId: schoolTwoTeacher.id,
+      classId: schoolTwoClass.id,
+      gender: "Male",
+      age: 8,
+      sportHouse: "Maple",
+      coCurricular: "Coding Club",
+      responsibilities: "Class Prefect",
+    },
+  });
+
+  const schoolTwoSubject = await prisma.subject.create({
+    data: {
+      schoolId: schoolTwo.id,
+      classId: schoolTwoClass.id,
+      teacherId: schoolTwoTeacher.id,
+      name: "Mathematics",
+    },
+  });
+
+  const schoolTwoFeeGroup = await prisma.feeGroup.create({
+    data: {
+      schoolId: schoolTwo.id,
+      name: "Core",
+      code: "core",
+      isActive: true,
+    },
+  });
+
+  const schoolTwoFeeItem = await prisma.feeItem.create({
+    data: {
+      schoolId: schoolTwo.id,
+      feeGroupId: schoolTwoFeeGroup.id,
+      sessionId: schoolTwoSession.id,
+      termId: schoolTwoTerm.id,
+      classId: schoolTwoClass.id,
+      armId: schoolTwoArmA.id,
+      category: "Core",
+      name: "Tuition",
+      description: "Core tuition fee",
+      amount: 60000,
+      isOptional: false,
+      dueDate: new Date("2026-02-10"),
+      sortOrder: 0,
+      dedupeKey: buildFeeItemDedupeKey({
+        feeGroupId: schoolTwoFeeGroup.id,
+        name: "Tuition",
+        classId: schoolTwoClass.id,
+        armId: schoolTwoArmA.id,
+        sessionId: schoolTwoSession.id,
+        termId: schoolTwoTerm.id,
+      }),
+    },
+  });
+
+  const schoolTwoInvoice = await prisma.invoice.create({
+    data: {
+      schoolId: schoolTwo.id,
+      studentId: schoolTwoStudent.id,
+      parentId: schoolTwoParent.id,
+      classId: schoolTwoClass.id,
+      termId: schoolTwoTerm.id,
+      sessionId: schoolTwoSession.id,
+      invoiceNumber: "INV-PILOT-0001",
+      totalAmount: 60000,
+      amountPaid: 0,
+      balance: 60000,
+      status: "PENDING",
+      paymentInstructions: "Pay to GTBANK and upload proof for review.",
+      createdById: schoolTwoAccountantUser.id,
+      dueDate: new Date("2026-02-10"),
+      items: {
+        create: [{ feeItemId: schoolTwoFeeItem.id, amount: 60000 }],
+      },
+    },
+  });
+
+  const schoolTwoPayment = await prisma.payment.create({
+    data: {
+      schoolId: schoolTwo.id,
+      invoiceId: schoolTwoInvoice.id,
+      studentId: schoolTwoStudent.id,
+      method: "Bank Transfer",
+      amount: 15000,
+      status: "PENDING",
+    },
+  });
+
+  await prisma.paymentProof.create({
+    data: {
+      schoolId: schoolTwo.id,
+      paymentId: schoolTwoPayment.id,
+      bankName: "GTBANK",
+      transactionReference: "PILOT-SCOPE-REF-001",
+      paymentDate: new Date("2026-01-25"),
+      proofUrl: "/uploads/smoke/pilot-proof.pdf",
+      status: "PENDING",
+    },
+  });
+
+  const schoolTwoGrade = getGrade(67);
+  await prisma.score.create({
+    data: {
+      schoolId: schoolTwo.id,
+      studentId: schoolTwoStudent.id,
+      subjectId: schoolTwoSubject.id,
+      teacherId: schoolTwoTeacher.id,
+      termId: schoolTwoTerm.id,
+      sessionId: schoolTwoSession.id,
+      caScore: 27,
+      examScore: 40,
+      total: 67,
+      grade: schoolTwoGrade.grade,
+      gpa: schoolTwoGrade.gpa,
+    },
+  });
+
+  await prisma.result.create({
+    data: {
+      schoolId: schoolTwo.id,
+      studentId: schoolTwoStudent.id,
+      termId: schoolTwoTerm.id,
+      sessionId: schoolTwoSession.id,
+      cumulativeTotal: 67,
+      average: 67,
+      termPercentage: 67,
+      termGrade: schoolTwoGrade.grade,
+      termGpa: schoolTwoGrade.gpa,
+      classTeacherComment: "Good performance.",
+      principalComment: "Keep improving.",
+      attendancePresent: 20,
+      attendanceTotal: 24,
+      status: "DRAFT",
+    },
+  });
+
+  await prisma.schoolSetting.createMany({
+    data: [
+      { schoolId: schoolTwo.id, key: "academic_session", value: "2025/2026" },
+      { schoolId: schoolTwo.id, key: "current_term", value: "First Term" },
+      { schoolId: schoolTwo.id, key: "active_session_id", value: schoolTwoSession.id },
+      { schoolId: schoolTwo.id, key: "active_term_id", value: schoolTwoTerm.id },
+      { schoolId: schoolTwo.id, key: "invoice_prefix", value: "INV-PILOT" },
+      { schoolId: schoolTwo.id, key: "receipt_prefix", value: "RCP-PILOT" },
+      { schoolId: schoolTwo.id, key: "report_theme", value: "premium-classic" },
+    ],
+  });
+
   console.log("Seed complete", {
-    school: school.name,
+    schools: [school.name, schoolTwo.name],
     users: {
       superAdmin: superAdmin.email,
       admin: admin.email,
@@ -548,6 +884,11 @@ async function main() {
       teacher: teacherUser.email,
       parent: parentUser.email,
       student: studentUser.email,
+      schoolTwoAdmin: schoolTwoAdmin.email,
+      schoolTwoAccountant: schoolTwoAccountantUser.email,
+      schoolTwoTeacher: schoolTwoTeacherUser.email,
+      schoolTwoParent: schoolTwoParentUser.email,
+      schoolTwoStudent: schoolTwoStudentUser.email,
     },
   });
 }

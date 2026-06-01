@@ -5,7 +5,7 @@ import { PortalShell } from "@/components/portal-shell";
 import { SetupRequiredScreen } from "@/components/setup-required-screen";
 import { requireRole } from "@/lib/auth-guards";
 import { getCoreSchoolDataByContext, getCurrentSchoolByUser, getUserAcademicContext } from "@/lib/data";
-import { formatDate, naira } from "@/lib/utils";
+import { formatDate, humanizeEnum, naira } from "@/lib/utils";
 import { prisma } from "@/lib/prisma";
 import { ChildWorkspaceSwitcher } from "@/app/parent/_components/child-workspace-switcher";
 
@@ -25,6 +25,7 @@ export default async function ParentChildWorkspacePage({ params }: { params: Pro
   }
 
   const context = await getUserAcademicContext(profile.schoolId, user.id);
+  const schoolId = profile.schoolId;
   const core = await getCoreSchoolDataByContext(profile.schoolId, {
     sessionId: context.session?.id,
     termId: context.term?.id,
@@ -48,22 +49,39 @@ export default async function ParentChildWorkspacePage({ params }: { params: Pro
 
   const childInvoices = core.invoices.filter((invoice) => invoice.studentId === child.id);
   const childAttendance = core.attendance.filter((row) => row.studentId === child.id);
-  const childScores = core.scores.filter((score) => score.studentId === child.id);
+  const childScoresAll = core.scores.filter((score) => score.studentId === child.id);
   const childLessons = core.lessons.filter((lesson) => child.classId && lesson.classId === child.classId);
   const childAssignments = core.assignments.filter((assignment) => assignment.studentId === child.id || (child.classId && assignment.classId === child.classId));
 
-  const childResults = await prisma.result.findMany({
-    where: {
-      schoolId: profile.schoolId,
+  const childResults = await (async () => {
+    const whereBase = {
+      schoolId,
       studentId: child.id,
       ...(context.session?.id ? { sessionId: context.session.id } : {}),
       ...(context.term?.id ? { termId: context.term.id } : {}),
-    },
-    include: { term: true, session: true },
-    orderBy: { createdAt: "desc" },
-  });
+    };
+
+    try {
+      return await prisma.result.findMany({
+        where: {
+          ...whereBase,
+          status: { in: ["PUBLISHED"] },
+        },
+        include: { term: true, session: true },
+        orderBy: { createdAt: "desc" },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      if (!message.includes("Unknown argument `status`")) {
+        throw error;
+      }
+
+      return [];
+    }
+  })();
 
   const latestResult = childResults[0] ?? null;
+  const childScores = latestResult ? childScoresAll : [];
   const totalOutstanding = childInvoices.reduce((sum, item) => sum + item.balance, 0);
   const presentCount = childAttendance.filter((item) => item.status === "PRESENT").length;
   const attendancePercent = childAttendance.length ? (presentCount / childAttendance.length) * 100 : 0;
@@ -134,7 +152,7 @@ export default async function ParentChildWorkspacePage({ params }: { params: Pro
             {childAttendance.length ? childAttendance.slice(0, 30).map((row) => (
               <div key={row.id} className="flex items-center justify-between rounded-xl border border-slate-200 bg-white/70 p-3">
                 <p className="text-slate-700">{formatDate(row.date)}</p>
-                <span className="rounded-full border border-slate-300 px-2 py-0.5 text-xs text-slate-700">{row.status}</span>
+                <span className="rounded-full border border-slate-300 px-2 py-0.5 text-xs text-slate-700">{humanizeEnum(row.status)}</span>
               </div>
             )) : <p className="text-slate-500">No attendance logs in selected term.</p>}
           </CardContent>
@@ -143,20 +161,20 @@ export default async function ParentChildWorkspacePage({ params }: { params: Pro
 
       <section id="fees" className="scroll-mt-24">
         <Card className="glass-panel">
-          <CardHeader><CardTitle>Fees & Invoices</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Fees & Bills</CardTitle></CardHeader>
           <CardContent className="space-y-2 text-sm">
             {childInvoices.length ? childInvoices.map((invoice) => (
               <div key={invoice.id} className="rounded-xl border border-slate-200 bg-white/70 p-3">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
-                    <p className="font-medium text-slate-900">Invoice #{invoice.invoiceNumber}</p>
+                    <p className="font-medium text-slate-900">Bill #{invoice.invoiceNumber}</p>
                     <p className="text-slate-600">{invoice.term.name} / {invoice.session.name}</p>
                   </div>
                   <p className="text-right text-slate-700">{naira(invoice.amountPaid)} paid / {naira(invoice.totalAmount)}</p>
                 </div>
                 <p className="mt-1 text-xs text-slate-500">Balance: {naira(invoice.balance)}</p>
               </div>
-            )) : <p className="text-slate-500">No invoices for selected term.</p>}
+            )) : <p className="text-slate-500">No bills for selected term.</p>}
           </CardContent>
         </Card>
       </section>

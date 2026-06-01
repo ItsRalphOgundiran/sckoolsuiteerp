@@ -1,8 +1,8 @@
 {
-  "/api/context/session-term/route": "app/api/context/session-term/route.js",
-  "/parent/dashboard/page": "app/parent/dashboard/page.js",
-  "/page": "app/page.js",
-  "/parent/children/[childId]/page": "app/parent/children/[childId]/page.js",
-  "/reports/[studentId]/page": "app/reports/[studentId]/page.js",
-  "/parent/[section]/page": "app/parent/[section]/page.js"
+  "/api/notifications/latest/route": "app/api/notifications/latest/route.js",
+  "/admin/[section]/page": "app/admin/[section]/page.js",
+  "/admin/settings/page": "app/admin/settings/page.js",
+  "/admin/settings/branding/page": "app/admin/settings/branding/page.js",
+  "/admin/settings/config-engine/page": "app/admin/settings/config-engine/page.js",
+  "/admin/settings/academic-calendar/page": "app/admin/settings/academic-calendar/page.js"
 }
