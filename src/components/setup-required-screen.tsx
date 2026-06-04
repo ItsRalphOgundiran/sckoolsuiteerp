@@ -19,8 +19,9 @@ export function SetupRequiredScreen({
   actionMode = "link",
 }: SetupRequiredScreenProps) {
   const handleSignOut = async () => {
-    const callbackUrl = actionHref.startsWith("/") ? `${window.location.origin}${actionHref}` : actionHref;
-    await signOut({ callbackUrl });
+    // Use relative URL to ensure redirect stays on same domain
+    // NextAuth will handle the redirect to the signIn page configured in auth.ts
+    await signOut({ callbackUrl: actionHref.startsWith("/") ? actionHref : "/login" });
   };
 
   return (

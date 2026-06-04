@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, Sora } from "next/font/google";
+import { SessionProvider } from "next-auth/react";
 import "./globals.css";
 
 const sora = Sora({
@@ -29,7 +30,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
-        {children}
+        <SessionProvider>{children}</SessionProvider>
       </body>
     </html>
   );

@@ -19,6 +19,8 @@ export type NavItem = {
   href: string;
   icon: LucideIcon;
   group?: string;
+  children?: NavItem[];
+  isSubmenu?: boolean;
 };
 
 export const navByRole: Record<string, NavItem[]> = {
@@ -28,7 +30,18 @@ export const navByRole: Record<string, NavItem[]> = {
   SCHOOL_ADMIN: [
     { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard, group: "1. Admin" },
     { label: "Reception", href: "/admin/reception", icon: Users, group: "1. Admin" },
-    { label: "Students", href: "/admin/students", icon: Users, group: "1. Admin" },
+    {
+      label: "Students",
+      href: "/admin/students",
+      icon: Users,
+      group: "1. Admin",
+      children: [
+        { label: "All Students", href: "/admin/students", icon: Users, isSubmenu: true },
+        { label: "Admissions", href: "/admin/students/admissions", icon: GraduationCap, isSubmenu: true },
+        { label: "Transfers", href: "/admin/students/transfers", icon: GraduationCap, isSubmenu: true },
+        { label: "Student Settings", href: "/admin/settings/students", icon: Settings, isSubmenu: true },
+      ],
+    },
     { label: "Parents", href: "/admin/parents", icon: Users, group: "1. Admin" },
     { label: "Teachers", href: "/admin/teachers", icon: GraduationCap, group: "1. Admin" },
     { label: "Driver & Transport", href: "/admin/transport", icon: Building2, group: "1. Admin" },

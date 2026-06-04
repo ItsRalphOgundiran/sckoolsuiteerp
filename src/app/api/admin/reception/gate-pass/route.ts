@@ -1,0 +1,141 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { auth } from "@/auth";
+import { prisma } from "@/lib/prisma";
+import { createAuditLog } from "@/lib/audit-log";
+
+const gatePassSchema = z.object({
+  personName: z.string().min(1).max(100),
+  personType: z.string().min(1),
+  purpose: z.string().min(1),
+  destination: z.string().optional().nullable(),
+  exitTime: z.string(),
+  expectedReturn: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
+});
+
+function isAuthorized(role?: string) {
+  return role ? ["SCHOOL_ADMIN", "PRINCIPAL", "SUPER_ADMIN", "RECEPTIONIST"].includes(role) : false;
+}
+
+async function generatePassNumber(schoolId: string): Promise<string> {
+  const config = await prisma.schoolSetting.findUnique({
+    where: { schoolId_key: { schoolId, key: "receptionConfig" } },
+  });
+  
+  let prefix = "RGPSM";
+  let digit = 3;
+  
+  if (config?.value) {
+    try {
+      const parsed = JSON.parse(config.value);
+      if (parsed.gatePass) {
+        prefix = parsed.gatePass.prefix || "RGPSM";
+        digit = parsed.gatePass.digit || 3;
+      }
+    } catch {}
+  }
+
+  const lastPass = await prisma.gatePass.findFirst({
+    where: { schoolId },
+    orderBy: { createdAt: "desc" },
+  });
+
+  let nextNumber = 1;
+  if (lastPass?.passNumber) {
+    const match = lastPass.passNumber.match(/(\d+)$/);
+    if (match) nextNumber = parseInt(match[1]) + 1;
+  }
+
+  return `${prefix}${nextNumber.toString().padStart(digit, "0")}`;
+}
+
+export async function GET(request: Request) {
+  const session = await auth();
+  if (!session?.user?.schoolId || !isAuthorized(session.user.role)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { searchParams } = new URL(request.url);
+  const schoolId = session.user.schoolId;
+  const status = searchParams.get("status");
+
+  try {
+    const where: Record<string, unknown> = { schoolId };
+    if (status && status !== "ALL") where.status = status;
+
+    const passes = await prisma.gatePass.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      include: { issuedBy: { select: { name: true } } },
+    });
+
+    return NextResponse.json({
+      passes: passes.map((p) => ({
+        id: p.id,
+        passNumber: p.passNumber,
+        personName: p.personName,
+        personType: p.personType,
+        purpose: p.purpose,
+        destination: p.destination,
+        exitTime: p.exitTime.toISOString(),
+        expectedReturn: p.expectedReturn?.toISOString() ?? null,
+        actualReturn: p.actualReturn?.toISOString() ?? null,
+        status: p.status,
+        issuedBy: p.issuedBy?.name ?? null,
+        notes: p.notes,
+        createdAt: p.createdAt.toISOString(),
+      })),
+    });
+  } catch (error) {
+    return NextResponse.json({ error: "Failed to load gate passes" }, { status: 500 });
+  }
+}
+
+export async function POST(request: Request) {
+  const session = await auth();
+  if (!session?.user?.schoolId || !isAuthorized(session.user.role)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const body = await request.json();
+  const parsed = gatePassSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  }
+
+  const schoolId = session.user.schoolId;
+  const data = parsed.data;
+
+  try {
+    const passNumber = await generatePassNumber(schoolId);
+
+    const pass = await prisma.gatePass.create({
+      data: {
+        schoolId,
+        passNumber,
+        personName: data.personName.trim(),
+        personType: data.personType,
+        purpose: data.purpose,
+        destination: data.destination?.trim() || null,
+        exitTime: new Date(data.exitTime),
+        expectedReturn: data.expectedReturn ? new Date(data.expectedReturn) : null,
+        notes: data.notes?.trim() || null,
+        issuedById: session.user.id,
+      },
+    });
+
+    await createAuditLog({
+      schoolId,
+      actorUserId: session.user.id,
+      action: "GATEPASS_CREATED",
+      targetType: "GatePass",
+      targetId: pass.id,
+      metadata: { passNumber },
+    });
+
+    return NextResponse.json({ pass: { ...pass, exitTime: pass.exitTime.toISOString() } }, { status: 201 });
+  } catch (error) {
+    return NextResponse.json({ error: "Failed to create gate pass" }, { status: 500 });
+  }
+}

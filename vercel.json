@@ -1,15 +1,14 @@
 {
-  "buildCommand": "npx prisma generate && npm run build",
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm run vercel-build",
+  "framework": "nextjs",
+  "installCommand": "npm install",
+  "regions": ["iad1"],
   "env": {
-    "NEXT_PUBLIC_APP_URL": "https://your-app.vercel.app",
-    "NEXTAUTH_URL": "https://your-app.vercel.app",
-    "APP_URL": "https://your-app.vercel.app"
-  },
-  "build": {
-    "env": {
-      "DATABASE_URL": "@DATABASE_URL",
-      "NEXTAUTH_SECRET": "@NEXTAUTH_SECRET",
-      "EMAIL_WEBHOOK_URL": "@EMAIL_WEBHOOK_URL"
-    }
+    "DATABASE_URL": "@database-url",
+    "DIRECT_URL": "@direct-url",
+    "NEXTAUTH_SECRET": "@nextauth-secret",
+    "NEXTAUTH_URL": "@nextauth-url",
+    "NODE_ENV": "production"
   }
 }

@@ -18,9 +18,9 @@ import { SetupRequiredScreen } from "@/components/setup-required-screen";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireRole } from "@/lib/auth-guards";
 import { getCoreSchoolDataByContext, getCurrentSchoolByUser, getUserAcademicContext } from "@/lib/data";
-import { isOptionalFeeItem } from "@/lib/invoice-contest";
+import { isOptionalFeeItem } from "@/lib/bill-contest";
 import { formatDate, humanizeEnum, naira } from "@/lib/utils";
-import { ParentInvoiceHub } from "@/app/parent/_components/parent-invoice-hub";
+import { ParentBillHub } from "@/app/parent/_components/parent-bill-hub";
 import { ParentMessagesPanel } from "@/app/parent/_components/parent-messages-panel";
 import { ParentComplaintsPanel } from "@/app/parent/_components/parent-complaints-panel";
 import { ParentProfilePanel } from "@/app/parent/_components/parent-profile-panel";
@@ -84,7 +84,7 @@ export default async function ParentSectionPage({ params }: { params: Promise<{ 
   const childIds = new Set(children.map((child) => child.id));
   const childClassIds = new Set(children.map((child) => child.classId).filter((id): id is string => Boolean(id)));
 
-  const invoices = core.invoices.filter((invoice) => childIds.has(invoice.studentId));
+  const bills = core.bills.filter((bill) => childIds.has(bill.studentId));
   const attendance = core.attendance.filter((row) => childIds.has(row.studentId));
   const scores = core.scores.filter((score) => childIds.has(score.studentId));
   const assignments = core.assignments.filter((assignment) => assignment.studentId && childIds.has(assignment.studentId));
@@ -179,7 +179,7 @@ export default async function ParentSectionPage({ params }: { params: Promise<{ 
   const sectionKey = section as AllowedSection;
   const tab = tabs[sectionKey];
 
-  const outstandingTotal = invoices.reduce((sum, item) => sum + item.balance, 0);
+  const outstandingTotal = bills.reduce((sum, item) => sum + item.balance, 0);
   const attendancePercent = attendance.length ? (attendance.filter((item) => item.status === "PRESENT").length / attendance.length) * 100 : 0;
   const punctualityLateRate = attendance.length ? (attendance.filter((item) => item.status === "LATE").length / attendance.length) * 100 : 0;
   const punctualityRating = punctualityLateRate <= 5 ? "Excellent" : punctualityLateRate <= 12 ? "Good" : "Needs attention";
@@ -205,34 +205,34 @@ export default async function ParentSectionPage({ params }: { params: Promise<{ 
 
   function childCard(childId: string) {
     const childAttendance = attendance.filter((item) => item.studentId === childId);
-    const childInvoices = invoices.filter((item) => item.studentId === childId);
+    const childBills = bills.filter((item) => item.studentId === childId);
     const childResults = results.filter((item) => item.studentId === childId);
     const childAssignments = assignments.filter((item) => item.studentId === childId);
 
     return {
       attendanceSummary: `${childAttendance.filter((item) => item.status === "PRESENT").length} present / ${childAttendance.length} logs`,
-      feeSummary: `${naira(childInvoices.reduce((sum, item) => sum + item.balance, 0))} outstanding`,
+      feeSummary: `${naira(childBills.reduce((sum, item) => sum + item.balance, 0))} outstanding`,
       resultSummary: childResults[0] ? `${childResults[0].termPercentage.toFixed(1)}% • ${childResults[0].termGrade}` : "No result summary",
       lmsActivity: `${childAssignments.filter((item) => item.submittedAt).length}/${childAssignments.length} submitted`,
       teacherComment: childResults[0]?.classTeacherComment ?? "No teacher comment yet",
     };
   }
 
-  const invoiceHubData = invoices.map((invoice) => ({
-    id: invoice.id,
-    invoiceNumber: invoice.invoiceNumber,
-    studentId: invoice.studentId,
-    studentName: invoice.student.user.name,
-    className: invoice.class?.name,
-    termName: invoice.term.name,
-    sessionName: invoice.session.name,
-    totalAmount: invoice.totalAmount,
-    amountPaid: invoice.amountPaid,
-    balance: invoice.balance,
-    status: invoice.status,
-    dueDate: invoice.dueDate?.toISOString() ?? null,
-    paymentInstructions: invoice.paymentInstructions,
-    items: invoice.items.map((item) => ({
+  const billHubData = bills.map((bill) => ({
+    id: bill.id,
+    invoiceNumber: bill.invoiceNumber,
+    studentId: bill.studentId,
+    studentName: bill.student.user.name,
+    className: bill.class?.name,
+    termName: bill.term.name,
+    sessionName: bill.session.name,
+    totalAmount: bill.totalAmount,
+    amountPaid: bill.amountPaid,
+    balance: bill.balance,
+    status: bill.status,
+    dueDate: bill.dueDate?.toISOString() ?? null,
+    paymentInstructions: bill.paymentInstructions,
+    items: bill.items.map((item) => ({
       id: item.id,
       groupName: item.feeItem.feeGroup?.name ?? item.feeItem.category,
       name: item.feeItem.name,
@@ -436,9 +436,9 @@ export default async function ParentSectionPage({ params }: { params: Promise<{ 
       ) : null}
 
       {sectionKey === "fees" ? (
-        <ParentInvoiceHub
+        <ParentBillHub
           childOptions={children.map((child) => ({ id: child.id, name: child.user.name }))}
-          invoices={invoiceHubData}
+          bills={billHubData}
           bank={{
             bankName: core.school?.branding?.bankName,
             bankAccountName: core.school?.branding?.bankAccountName,

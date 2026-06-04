@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum RoleType {
@@ -90,6 +91,8 @@ model School {
   sessions      Session[]
   feeGroups     FeeGroup[]
   feeItems      FeeItem[]
+  feeComponents FeeComponent[]
+  feeProfiles   FeeProfile[]
   invoices      Invoice[]
   payments      Payment[]
   receipts      Receipt[]
@@ -108,6 +111,17 @@ model School {
   paymentProofs PaymentProof[]
   auditLogs AuditLog[]
   invoiceContestAudits InvoiceContestAudit[]
+  vehicles      Vehicle[]
+  drivers       Driver[]
+  routes        Route[]
+  routeStops    RouteStop[]
+  visitors      Visitor[]
+  enquiries     Enquiry[]
+  gatePasses    GatePass[]
+  receptionComplaints ReceptionComplaint[]
+  callLogs      CallLog[]
+  correspondences Correspondence[]
+  queries       Query[]
 }
 
 model ClassGroup {
@@ -177,6 +191,10 @@ model User {
   reviewedPaymentProofs PaymentProof[] @relation("PaymentProofReviewedBy")
   approvedResults Result[] @relation("ResultApprovedBy")
   publishedResults Result[] @relation("ResultPublishedBy")
+  driver      Driver?
+  issuedGatePasses GatePass[] @relation("GatePassIssuedBy")
+  resolvedComplaints ReceptionComplaint[] @relation("ComplaintResolvedBy")
+  respondedQueries Query[] @relation("QueryRespondedBy")
 }
 
 model SchoolConfigVersion {
@@ -258,6 +276,8 @@ model Student {
   receipts         Receipt[]
   results          Result[]
   assignments      Assignment[] @relation("StudentAssignments")
+  routeId          String?
+  route            Route?       @relation(fields: [routeId], references: [id], onDelete: SetNull)
 }
 
 model Class {
@@ -275,6 +295,7 @@ model Class {
   subjects     Subject[]
   invoices     Invoice[]
   feeItems     FeeItem[]
+  feeProfileClasses FeeProfileClass[]
   attendance   Attendance[]
   lessons      Lesson[]
   assignments  Assignment[]
@@ -297,6 +318,7 @@ model ClassArm {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
   feeItems   FeeItem[]
+  feeProfileArms FeeProfileArm[]
 
   @@unique([schoolId, classId, name])
 }
@@ -312,6 +334,7 @@ model FeeGroup {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   feeItems    FeeItem[]
+  feeProfiles FeeProfile[]
 
   @@unique([schoolId, name])
   @@unique([schoolId, code])
@@ -351,6 +374,7 @@ model Session {
   startDate DateTime?
   endDate   DateTime?
   createdAt DateTime  @default(now())
+  feeProfiles FeeProfile[]
   terms     Term[]
   invoices  Invoice[]
   feeItems  FeeItem[]
@@ -377,6 +401,7 @@ model Term {
   createdAt DateTime  @default(now())
   invoices  Invoice[]
   feeItems  FeeItem[]
+  feeProfiles FeeProfile[]
   scores    Score[]
   results   Result[]
   attendance Attendance[]
@@ -749,4 +774,297 @@ model InvoiceContestAudit {
   createdAt  DateTime @default(now())
 
   @@index([schoolId, invoiceId, createdAt])
+}
+
+model Vehicle {
+  id          String    @id @default(cuid())
+  schoolId    String
+  school      School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  name        String
+  type        String    // BUS, VAN, CAR, etc.
+  plateNumber String
+  capacity    Int
+  driverId    String?
+  driver      Driver?   @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  routes      Route[]
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Driver {
+  id          String    @id @default(cuid())
+  schoolId    String
+  school      School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  userId      String    @unique
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  licenseNumber String
+  phone       String?
+  address     String?
+  vehicles    Vehicle[]
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Route {
+  id          String            @id @default(cuid())
+  schoolId    String
+  school      School            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  name        String
+  vehicleId   String?
+  vehicle     Vehicle?          @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  stops       RouteStop[]
+  students    Student[]
+  pickupTime  String?           // e.g., "07:30"
+  dropoffTime String?           // e.g., "15:30"
+  isActive    Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+}
+
+model RouteStop {
+  id          String    @id @default(cuid())
+  schoolId    String
+  school      School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  routeId     String
+  route       Route     @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  name        String
+  address     String
+  order       Int       @default(0)
+  pickupTime  String?
+  createdAt   DateTime  @default(now())
+}
+
+model Visitor {
+  id          String    @id @default(cuid())
+  schoolId    String
+  school      School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  name        String
+  phone       String?
+  email       String?
+  purpose     String    // Meeting, Delivery, Interview, etc.
+  whomToSee   String?   // Who they want to see
+  department  String?   // Which department
+  checkInTime DateTime  @default(now())
+  checkOutTime DateTime?
+  status      String    @default("CHECKED_IN") // CHECKED_IN, CHECKED_OUT
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// Master Fee Components - Reusable fee types (Tuition, Sports, Library, etc.)
+model FeeComponent {
+  id          String    @id @default(cuid())
+  schoolId    String
+  school      School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  name        String    // e.g., "Tuition", "Sports", "Library", "ICT"
+  description String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  profileItems FeeProfileItem[]
+
+  @@unique([schoolId, name])
+  @@index([schoolId, isActive])
+}
+
+// Fee Profile - Defines fees for specific classes/arms with one due date
+model FeeProfile {
+  id          String    @id @default(cuid())
+  schoolId    String
+  school      School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  feeGroupId  String
+  feeGroup    FeeGroup  @relation(fields: [feeGroupId], references: [id], onDelete: Cascade)
+  name        String    // e.g., "JSS 1-3 First Term 2024"
+  sessionId   String
+  session     Session   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  termId      String
+  term        Term      @relation(fields: [termId], references: [id], onDelete: Cascade)
+  dueDate     DateTime? // One due date for all items in this profile
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  items       FeeProfileItem[]
+  classes     FeeProfileClass[]
+  arms        FeeProfileArm[]
+
+  @@index([schoolId, feeGroupId])
+  @@index([schoolId, sessionId, termId])
+}
+
+// Items within a Fee Profile (references FeeComponent)
+model FeeProfileItem {
+  id              String       @id @default(cuid())
+  feeProfileId    String
+  feeProfile      FeeProfile   @relation(fields: [feeProfileId], references: [id], onDelete: Cascade)
+  feeComponentId  String
+  feeComponent    FeeComponent @relation(fields: [feeComponentId], references: [id], onDelete: Restrict)
+  amount          Float
+  isOptional      Boolean      @default(false)
+  sortOrder       Int          @default(0)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@unique([feeProfileId, feeComponentId])
+}
+
+// Junction table: Which classes are included in this fee profile
+model FeeProfileClass {
+  id           String     @id @default(cuid())
+  feeProfileId String
+  feeProfile   FeeProfile @relation(fields: [feeProfileId], references: [id], onDelete: Cascade)
+  classId      String
+  class        Class      @relation(fields: [classId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
+  @@unique([feeProfileId, classId])
+}
+
+// Junction table: Which arms are included in this fee profile
+model FeeProfileArm {
+  id           String     @id @default(cuid())
+  feeProfileId String
+  feeProfile   FeeProfile @relation(fields: [feeProfileId], references: [id], onDelete: Cascade)
+  armId        String
+  arm          ClassArm   @relation(fields: [armId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
+  @@unique([feeProfileId, armId])
+}
+
+model Enquiry {
+  id             String    @id @default(cuid())
+  schoolId       String
+  school         School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  enquiryNumber  String    @unique
+  name           String
+  phone          String?
+  email          String?
+  source         String    // Walk-in, Phone, Email, Website, Referral
+  type           String    // General, Admission, Fee, Academic, Other
+  stage          String    // New, In Progress, Follow-up, Resolved, Closed
+  subject        String
+  notes          String?
+  followUpDate   DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([schoolId])
+  @@index([stage])
+  @@index([createdAt])
+}
+
+model GatePass {
+  id             String    @id @default(cuid())
+  schoolId       String
+  school         School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  passNumber     String    @unique
+  personName     String
+  personType     String    // Student, Staff, Visitor, Other
+  purpose        String
+  destination    String?
+  exitTime       DateTime
+  expectedReturn DateTime?
+  actualReturn   DateTime?
+  issuedById     String?
+  issuedBy       User?     @relation("GatePassIssuedBy", fields: [issuedById], references: [id], onDelete: SetNull)
+  status         String    @default("ACTIVE") // ACTIVE, RETURNED, OVERDUE
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([schoolId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model ReceptionComplaint {
+  id             String    @id @default(cuid())
+  schoolId       String
+  school         School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  complaintNumber String   @unique
+  complainantName String
+  complainantType String   // Parent, Student, Staff, Visitor
+  phone          String?
+  email          String?
+  complaintType  String
+  subject        String
+  description    String
+  status         String    @default("OPEN") // OPEN, IN_PROGRESS, RESOLVED, CLOSED
+  resolution     String?
+  resolvedById   String?
+  resolvedBy     User?     @relation("ComplaintResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
+  resolvedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([schoolId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model CallLog {
+  id             String    @id @default(cuid())
+  schoolId       String
+  school         School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  callNumber     String    @unique
+  callerName     String
+  callerPhone    String
+  purpose        String
+  recipient      String?
+  duration       Int?      // in seconds
+  status         String    @default("COMPLETED") // COMPLETED, CALLBACK_REQUIRED, NO_ANSWER
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([schoolId])
+  @@index([createdAt])
+}
+
+model Correspondence {
+  id             String    @id @default(cuid())
+  schoolId       String
+  school         School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  refNumber      String    @unique
+  senderName     String
+  senderAddress  String?
+  type           String    // INCOMING, OUTGOING
+  subject        String
+  description    String
+  receivedDate   DateTime?
+  dispatchedDate DateTime?
+  status         String    @default("PENDING") // PENDING, PROCESSED, ARCHIVED
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([schoolId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Query {
+  id             String    @id @default(cuid())
+  schoolId       String
+  school         School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  queryNumber    String    @unique
+  queryType      String    // Information, Clarification, Complaint, Suggestion
+  querierName    String
+  querierContact String?
+  subject        String
+  description    String
+  response       String?
+  status         String    @default("PENDING") // PENDING, ANSWERED, CLOSED
+  respondedById  String?
+  respondedBy    User?     @relation("QueryRespondedBy", fields: [respondedById], references: [id], onDelete: SetNull)
+  respondedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([schoolId])
+  @@index([status])
+  @@index([createdAt])
 }

@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { PortalShell } from "@/components/portal-shell";
 import { SetupRequiredScreen } from "@/components/setup-required-screen";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { InvoiceContestReviewPanel } from "@/components/invoice-contest-review-panel";
+import { BillContestReviewPanel } from "@/components/bill-contest-review-panel";
 import { requireRole } from "@/lib/auth-guards";
 import { getCoreSchoolDataByContext, getCurrentSchoolByUser, getUserAcademicContext, statusLabel } from "@/lib/data";
 import { formatDate, naira } from "@/lib/utils";
@@ -62,12 +62,12 @@ export default async function AccountantSectionPage({ params }: { params: Promis
     termId: context.term?.id,
   });
 
-  const totalInvoiced = core.invoices.reduce((sum: number, item: { totalAmount?: number }) => sum + (item.totalAmount || 0), 0 as number);
+  const totalInvoiced = core.bills.reduce((sum: number, item: { totalAmount?: number }) => sum + (item.totalAmount || 0), 0 as number);
   const totalPaid = core.payments.reduce((sum: number, item: { amount?: number }) => sum + (item.amount || 0), 0 as number);
-  const outstanding = core.invoices.reduce((sum: number, item: { balance?: number }) => sum + (item.balance || 0), 0 as number);
-  const debtors = core.invoices.filter((item: { balance: number }) => item.balance > 0);
+  const outstanding = core.bills.reduce((sum: number, item: { balance?: number }) => sum + (item.balance || 0), 0 as number);
+  const debtors = core.bills.filter((item: { balance: number }) => item.balance > 0);
   const canonical = aliases[section as AllowedSection];
-  type InvoiceRow = (typeof core.invoices)[number];
+  type BillRow = (typeof core.bills)[number];
   type PaymentRow = (typeof core.payments)[number];
   type FeeItemRow = (typeof core.feeItems)[number];
 
@@ -90,18 +90,18 @@ export default async function AccountantSectionPage({ params }: { params: Promis
       case "invoices":
         return (
           <div className="space-y-3">
-            <InvoiceContestReviewPanel currentRole={user.role} />
+            <BillContestReviewPanel currentRole={user.role} />
             <Card>
               <CardHeader><CardTitle>Bill Ledger</CardTitle></CardHeader>
               <CardContent className="space-y-2 text-sm">
-                  {core.invoices.slice(0, 30).map((item: InvoiceRow) => (
+                  {core.bills.slice(0, 30).map((item: BillRow) => (
                   <div key={item.id} className="glass-soft rounded-xl p-3">
                     <p className="font-medium">{item.invoiceNumber}</p>
                     <p>{item.student.user.name} • Total: {naira(item.totalAmount)} • Balance: {naira(item.balance)}</p>
                     <p>Status: {statusLabel(item.status)} • Due: {formatDate(item.dueDate)}</p>
                   </div>
                 ))}
-                {!core.invoices.length ? <p className="text-slate-500">No bills generated yet.</p> : null}
+                {!core.bills.length ? <p className="text-slate-500">No bills generated yet.</p> : null}
               </CardContent>
             </Card>
           </div>
@@ -127,14 +127,14 @@ export default async function AccountantSectionPage({ params }: { params: Promis
           <Card>
             <CardHeader><CardTitle>Issued Receipts</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">
-                {core.invoices.filter((item: InvoiceRow) => item.receipt).slice(0, 30).map((item: InvoiceRow) => (
+                {core.bills.filter((item: BillRow) => item.receipt).slice(0, 30).map((item: BillRow) => (
                 <div key={item.id} className="glass-soft rounded-xl p-3">
                   <p className="font-medium">{item.invoiceNumber}</p>
                   <p>Student: {item.student.user.name} • Paid: {naira(item.amountPaid)}</p>
                   <p>Receipt issued</p>
                 </div>
               ))}
-              {!core.invoices.some((item) => item.receipt) ? <p className="text-slate-500">No receipts issued yet.</p> : null}
+              {!core.bills.some((item) => item.receipt) ? <p className="text-slate-500">No receipts issued yet.</p> : null}
             </CardContent>
           </Card>
         );
@@ -143,7 +143,7 @@ export default async function AccountantSectionPage({ params }: { params: Promis
           <Card>
             <CardHeader><CardTitle>Debtors</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">
-                {debtors.slice(0, 30).map((item: InvoiceRow) => (
+                {debtors.slice(0, 30).map((item: BillRow) => (
                 <div key={item.id} className="glass-soft rounded-xl p-3">
                   <p className="font-medium">{item.student.user.name}</p>
                   <p>Bill: {item.invoiceNumber} • Outstanding: {naira(item.balance)}</p>
@@ -159,13 +159,13 @@ export default async function AccountantSectionPage({ params }: { params: Promis
             <CardHeader><CardTitle>Discounts & Adjustments</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">
               <p>Track bills with partial payments as active discount/adjustment indicators.</p>
-              {core.invoices.filter((item) => item.status === "PART_PAYMENT").slice(0, 25).map((item) => (
+              {core.bills.filter((item) => item.status === "PART_PAYMENT").slice(0, 25).map((item) => (
                 <div key={item.id} className="glass-soft rounded-xl p-3">
                   <p className="font-medium">{item.invoiceNumber}</p>
                   <p>Paid: {naira(item.amountPaid)} • Balance: {naira(item.balance)}</p>
                 </div>
               ))}
-              {!core.invoices.some((item) => item.status === "PART_PAYMENT") ? <p className="text-slate-500">No partial-payment adjustments found.</p> : null}
+              {!core.bills.some((item) => item.status === "PART_PAYMENT") ? <p className="text-slate-500">No partial-payment adjustments found.</p> : null}
             </CardContent>
           </Card>
         );

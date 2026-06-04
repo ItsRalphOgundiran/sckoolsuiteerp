@@ -1,6 +1,5 @@
-import { PortalShell } from "@/components/portal-shell";
+import { ModernPortalShell } from "@/components/modern-portal-shell";
 import { SetupRequiredScreen } from "@/components/setup-required-screen";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireRole } from "@/lib/auth-guards";
 import { getCurrentSchoolByUser } from "@/lib/data";
 import { prisma } from "@/lib/prisma";
@@ -56,28 +55,29 @@ export default async function AcademicCalendarPage() {
   const activeTerm = terms.find((item) => item.isCurrent);
 
   return (
-    <PortalShell
+    <ModernPortalShell
       role={user.role}
       schoolName={profile.school.name}
       schoolLogoUrl={profile.school.branding?.logoUrl ?? undefined}
       userName={user.name ?? "Admin"}
       pathname="/admin/settings/academic-calendar"
-      primaryColor={profile.school.branding?.primaryColor}
-      secondaryColor={profile.school.branding?.secondaryColor}
     >
-      <Card>
-        <CardHeader>
-          <CardTitle>Academic Calendar & Setup</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <AcademicCalendarClient
-            initialSessions={initialSessions}
-            initialTerms={initialTerms}
-            initialSessionId={activeSession?.id}
-            initialTermId={activeTerm?.id}
-          />
-        </CardContent>
-      </Card>
-    </PortalShell>
+      <div className="space-y-6">
+        <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-200 px-6 py-4">
+            <h2 className="text-lg font-semibold text-slate-900">Academic Calendar & Setup</h2>
+            <p className="text-sm text-slate-500">Manage academic sessions, terms, and scheduling</p>
+          </div>
+          <div className="p-6">
+            <AcademicCalendarClient
+              initialSessions={initialSessions}
+              initialTerms={initialTerms}
+              initialSessionId={activeSession?.id}
+              initialTermId={activeTerm?.id}
+            />
+          </div>
+        </div>
+      </div>
+    </ModernPortalShell>
   );
 }

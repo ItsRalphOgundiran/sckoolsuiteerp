@@ -153,13 +153,13 @@ export function PortalTopbar({
         complaint: "/super-admin/dashboard",
       },
       admin: {
-        contest: "/admin/invoices",
+        contest: "/admin/bills",
         announcement: "/admin/announcements",
         message: "/admin/announcements",
         complaint: "/admin/parents",
       },
       accountant: {
-        contest: "/accountant/invoices",
+        contest: "/accountant/bills",
         announcement: "/accountant/dashboard",
         message: "/accountant/dashboard",
         complaint: "/accountant/dashboard",
@@ -206,8 +206,8 @@ export function PortalTopbar({
     if (href.startsWith("/parent/announcements")) return "Opens Announcements";
     if (href.startsWith("/teacher/announcements")) return "Opens Announcements";
     if (href.startsWith("/student/announcements")) return "Opens Announcements";
-    if (href.startsWith("/accountant/invoices")) return "Opens Bills";
-    if (href.startsWith("/admin/invoices")) return "Opens Bills";
+    if (href.startsWith("/accountant/bills")) return "Opens Bills";
+    if (href.startsWith("/admin/bills")) return "Opens Bills";
     if (href.startsWith("/admin/announcements")) return "Opens Announcements";
     if (href.startsWith("/admin/parents")) return "Opens Parents";
     return "Opens Section";

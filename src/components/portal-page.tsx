@@ -63,13 +63,13 @@ export async function PortalPage({
   if (!schoolId) return null;
 
   const [overview, core] = await Promise.all([getAdminOverview(schoolId), getCoreSchoolData(schoolId)]);
-  const latestInvoice = core.invoices[0];
+  const latestBill = core.bills[0];
   const latestResult = core.result;
 
   const metricItems = [
     { label: "Students", value: String(overview.students) },
     { label: "Teachers", value: String(overview.teachers) },
-    { label: "Invoiced", value: naira(overview.totalInvoiced) },
+    { label: "Billed", value: naira(overview.totalInvoiced) },
     { label: "Outstanding", value: naira(overview.outstanding) },
   ];
 
@@ -100,15 +100,15 @@ export async function PortalPage({
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <SimpleTable
-          title="Invoices"
+          title="Bills"
           headers={["No", "Student", "Total", "Paid", "Balance", "Status"]}
-          rows={core.invoices.slice(0, 6).map((invoice) => [
-            invoice.invoiceNumber,
-            invoice.student.user.name,
-            naira(invoice.totalAmount),
-            naira(invoice.amountPaid),
-            naira(invoice.balance),
-            statusLabel(invoice.status),
+          rows={core.bills.slice(0, 6).map((bill) => [
+            bill.invoiceNumber,
+            bill.student.user.name,
+            naira(bill.totalAmount),
+            naira(bill.amountPaid),
+            naira(bill.balance),
+            statusLabel(bill.status),
           ])}
         />
 
@@ -150,16 +150,16 @@ export async function PortalPage({
               <Badge>Results</Badge>
               <Badge>LMS</Badge>
             </div>
-            {latestInvoice ? (
+            {latestBill ? (
               <div className="rounded-lg border border-slate-200 p-3">
-                <p className="font-medium">Latest Bill: {latestInvoice.invoiceNumber}</p>
-                <p className="text-slate-600">Status: {statusLabel(latestInvoice.status)}</p>
+                <p className="font-medium">Latest Bill: {latestBill.invoiceNumber}</p>
+                <p className="text-slate-600">Status: {statusLabel(latestBill.status)}</p>
                 <div className="mt-2 flex gap-2">
-                  <Link href={`/invoice/${latestInvoice.id}`} className="text-[var(--brand-primary)] underline">
+                  <Link href={`/bill/${latestBill.id}`} className="text-[var(--brand-primary)] underline">
                     View Bill
                   </Link>
-                  {latestInvoice.receipt ? (
-                    <Link href={`/receipt/${latestInvoice.id}`} className="text-[var(--brand-secondary)] underline">
+                  {latestBill.receipt ? (
+                    <Link href={`/receipt/${latestBill.id}`} className="text-[var(--brand-secondary)] underline">
                       View Receipt
                     </Link>
                   ) : null}

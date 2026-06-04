@@ -1,22 +1,24 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { Mail, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { loginAction } from "@/app/login/actions";
 
 const schema = z.object({
-  email: z.string().email(),
-  password: z.string().min(6),
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
 type FormValues = z.infer<typeof schema>;
 
 export function LoginForm() {
   const [pending, startTransition] = useTransition();
+  const [showPassword, setShowPassword] = useState(false);
   const {
     register,
     handleSubmit,
@@ -40,33 +42,64 @@ export function LoginForm() {
   };
 
   return (
-    <form className="space-y-3.5" onSubmit={handleSubmit(onSubmit)}>
-      <div>
-        <label className="mb-1 block text-sm font-medium text-slate-700">Email</label>
-        <Input type="email" placeholder="you@school.com" {...register("email")} />
-        {errors.email ? <p className="mt-1 text-xs text-red-600">{errors.email.message}</p> : null}
+    <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-slate-700">Email address</label>
+        <div className="relative">
+          <Mail className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+          <Input 
+            type="email" 
+            placeholder="admin@school.com" 
+            className="h-12 pl-10"
+            {...register("email")} 
+          />
+        </div>
+        {errors.email && (
+          <p className="text-xs text-red-600">{errors.email.message}</p>
+        )}
       </div>
-      <div>
-        <label className="mb-1 block text-sm font-medium text-slate-700">Password</label>
-        <Input type="password" placeholder="Enter your password" {...register("password")} />
-        {errors.password ? <p className="mt-1 text-xs text-red-600">{errors.password.message}</p> : null}
-      </div>
-      <div className="flex items-center justify-end text-xs sm:text-sm">
-        <button type="button" className="font-medium text-indigo-600 hover:text-indigo-700">Forgot password?</button>
-      </div>
-      {errors.root ? <p className="text-sm text-red-600">{errors.root.message}</p> : null}
-      <Button type="submit" className="h-11 w-full bg-gradient-to-r from-indigo-600 to-violet-600 text-sm font-semibold" disabled={pending}>
-        {pending ? "Signing in..." : "Sign In"}
-      </Button>
 
-      <div className="relative py-1 text-center text-[11px] text-slate-500">
-        <span className="bg-white px-2">or continue with</span>
-        <div className="absolute left-0 top-1/2 -z-10 h-px w-full bg-slate-200" />
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-slate-700">Password</label>
+        <div 
+          className="relative"
+          onMouseLeave={() => setShowPassword(false)}
+        >
+          <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+          <Input 
+            type={showPassword ? "text" : "password"} 
+            placeholder="••••••••" 
+            className="h-12 pl-10 pr-10"
+            {...register("password")} 
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+            tabIndex={-1}
+          >
+            {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+          </button>
+        </div>
+        {errors.password && (
+          <p className="text-xs text-red-600">{errors.password.message}</p>
+        )}
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <button type="button" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600">Facebook</button>
-        <button type="button" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600">Google</button>
-      </div>
+
+      {errors.root && (
+        <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">
+          {errors.root.message}
+        </div>
+      )}
+
+      <Button 
+        type="submit" 
+        className="h-12 w-full gap-2 bg-indigo-600 text-base font-semibold hover:bg-indigo-700" 
+        disabled={pending}
+      >
+        {pending ? "Signing in..." : "Sign In"}
+        {!pending && <ArrowRight className="h-4 w-4" />}
+      </Button>
     </form>
   );
 }

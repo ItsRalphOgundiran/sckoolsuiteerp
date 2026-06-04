@@ -6,6 +6,10 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { roleDefaultRoute } from "@/lib/constants";
 
+export async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, 10);
+}
+
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
@@ -18,10 +22,21 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     signIn: "/login",
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         token.role = (user as { role?: string }).role;
         token.schoolId = (user as { schoolId?: string }).schoolId;
+      }
+      // Re-fetch user data on session update or if schoolId is missing
+      if (trigger === "update" || (token.sub && !token.schoolId)) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.sub },
+          select: { schoolId: true, role: { select: { name: true } } }
+        });
+        if (dbUser) {
+          token.schoolId = dbUser.schoolId;
+          token.role = dbUser.role?.name;
+        }
       }
       return token;
     },
@@ -34,17 +49,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return session;
     },
     async redirect({ url, baseUrl }) {
-      const preferredBaseUrl =
-        process.env.NEXT_PUBLIC_APP_URL?.trim() ||
-        process.env.APP_URL?.trim() ||
-        process.env.NEXTAUTH_URL?.trim() ||
-        baseUrl;
-
-      const activeBaseUrl = baseUrl.includes("localhost") ? preferredBaseUrl : baseUrl;
-
-      if (url.startsWith("/")) return `${activeBaseUrl}${url}`;
-      if (url.startsWith(activeBaseUrl)) return url;
-      return activeBaseUrl;
+      // For relative URLs, return as-is to stay on same domain
+      if (url.startsWith("/")) return url;
+      
+      // If URL is already absolute and matches baseUrl, allow it
+      if (url.startsWith(baseUrl)) return url;
+      
+      // For any other case, default to baseUrl
+      return baseUrl;
     },
   },
   providers: [

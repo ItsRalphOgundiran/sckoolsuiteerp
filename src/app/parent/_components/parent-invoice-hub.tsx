@@ -4,8 +4,8 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 type Child = { id: string; name: string };
-type InvoiceItem = { id: string; groupName?: string; name: string; amount: number; optional?: boolean };
-type Invoice = {
+type BillItem = { id: string; groupName?: string; name: string; amount: number; optional?: boolean };
+type Bill = {
   id: string;
   invoiceNumber: string;
   studentId: string;
@@ -19,21 +19,21 @@ type Invoice = {
   status: string;
   dueDate?: string | null;
   paymentInstructions?: string | null;
-  items: InvoiceItem[];
+  items: BillItem[];
 };
 
-type InvoiceContest = {
-  invoiceId: string;
+type BillContest = {
+  billId: string;
   status: "SUBMITTED" | "UNDER_REVIEW" | "APPROVED" | "REJECTED";
   parentComment: string;
   staffComment: string;
   updatedAt: string;
-  items?: Array<{ invoiceItemId: string; proposedAmount: number; originalAmount: number }>;
+  items?: Array<{ billItemId: string; proposedAmount: number; originalAmount: number }>;
 };
 
 const OPTIONAL_ITEM_HINTS = /(optional|elective|club|transport|lunch|meal|boarding|excursion|trip|bus|after school|textbook|taekwondo|ballet|football)/i;
 
-function isOptionalItem(item: InvoiceItem) {
+function isOptionalItem(item: BillItem) {
   if (typeof item.optional === "boolean") return item.optional;
   return OPTIONAL_ITEM_HINTS.test(item.name);
 }
@@ -59,7 +59,7 @@ function paymentStatusLabel(status: string) {
   }
 }
 
-function contestStatusLabel(status: InvoiceContest["status"]) {
+function contestStatusLabel(status: BillContest["status"]) {
   switch (status) {
     case "SUBMITTED":
       return "Submitted";
@@ -78,7 +78,7 @@ function money(value: number) {
   return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 2 }).format(value);
 }
 
-function invoiceStatusStyle(status: string) {
+function billStatusStyle(status: string) {
   switch (status) {
     case "PAID":
       return "bg-emerald-100 text-emerald-700 border-emerald-300";
@@ -91,23 +91,23 @@ function invoiceStatusStyle(status: string) {
   }
 }
 
-export function ParentInvoiceHub({
+export function ParentBillHub({
   childOptions,
-  invoices,
+  bills,
   bank,
 }: {
   childOptions: Child[];
-  invoices: Invoice[];
+  bills: Bill[];
   bank: { bankName?: string | null; bankAccountName?: string | null; bankAccountNumber?: string | null; bankInstructions?: string | null };
 }) {
   const [childFilter, setChildFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
-  const [activeInvoice, setActiveInvoice] = useState<string | null>(null);
+  const [activeBill, setActiveBill] = useState<string | null>(null);
   const [toast, setToast] = useState("");
-  const [activeContestInvoice, setActiveContestInvoice] = useState<string | null>(null);
+  const [activeContestBill, setActiveContestBill] = useState<string | null>(null);
   const [contestComment, setContestComment] = useState("");
   const [contestSelection, setContestSelection] = useState<Record<string, boolean>>({});
-  const [contests, setContests] = useState<InvoiceContest[]>([]);
+  const [contests, setContests] = useState<BillContest[]>([]);
   const [formState, setFormState] = useState({
     amountPaid: "",
     paymentMethod: "Transfer",
@@ -118,16 +118,16 @@ export function ParentInvoiceHub({
   const [proofFile, setProofFile] = useState<File | null>(null);
 
   const filtered = useMemo(() => {
-    return invoices.filter((invoice) => {
-      const childOk = childFilter === "ALL" || invoice.studentId === childFilter;
-      const statusOk = statusFilter === "ALL" || invoice.status === statusFilter;
+    return bills.filter((bill) => {
+      const childOk = childFilter === "ALL" || bill.studentId === childFilter;
+      const statusOk = statusFilter === "ALL" || bill.status === statusFilter;
       return childOk && statusOk;
     });
-  }, [invoices, childFilter, statusFilter]);
+  }, [bills, childFilter, statusFilter]);
 
   async function loadContests() {
-    const response = await fetch("/api/parent/invoices/contest", { cache: "no-store" });
-    const payload = (await response.json().catch(() => ({}))) as { contests?: InvoiceContest[] };
+    const response = await fetch("/api/parent/bills/contest", { cache: "no-store" });
+    const payload = (await response.json().catch(() => ({}))) as { contests?: BillContest[] };
     setContests(Array.isArray(payload.contests) ? payload.contests : []);
   }
 
@@ -141,9 +141,9 @@ export function ParentInvoiceHub({
     };
   }, []);
 
-  async function submitPaymentNotice(invoiceId: string) {
+  async function submitPaymentNotice(billId: string) {
     const body = new FormData();
-    body.set("invoiceId", invoiceId);
+    body.set("billId", billId);
     body.set("amountPaid", formState.amountPaid);
     body.set("paymentMethod", formState.paymentMethod);
     body.set("bankName", formState.bankName);
@@ -165,19 +165,19 @@ export function ParentInvoiceHub({
     }
 
     setToast("Payment notice submitted. Awaiting school confirmation.");
-    setActiveInvoice(null);
+    setActiveBill(null);
     setProofFile(null);
     setTimeout(() => {
       window.location.reload();
     }, 700);
   }
 
-  async function submitBillContest(invoice: Invoice) {
-    const optionalItems = invoice.items.filter((item) => isOptionalItem(item));
+  async function submitBillContest(bill: Bill) {
+    const optionalItems = bill.items.filter((item) => isOptionalItem(item));
     const adjustments = optionalItems
       .filter((item) => contestSelection[item.id] === false)
       .map((item) => ({
-        invoiceItemId: item.id,
+        billItemId: item.id,
         proposedAmount: 0,
       }));
 
@@ -191,11 +191,11 @@ export function ParentInvoiceHub({
       return;
     }
 
-    const response = await fetch("/api/parent/invoices/contest", {
+    const response = await fetch("/api/parent/bills/contest", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        invoiceId: invoice.id,
+        billId: bill.id,
         parentComment: contestComment,
         adjustments,
       }),
@@ -208,13 +208,13 @@ export function ParentInvoiceHub({
     }
 
     setToast("Bill contest submitted. School finance team will review and finalize.");
-    setActiveContestInvoice(null);
+    setActiveContestBill(null);
     setContestComment("");
     setContestSelection({});
     await loadContests();
   }
 
-  function statusStyle(status: InvoiceContest["status"]) {
+  function statusStyle(status: BillContest["status"]) {
     switch (status) {
       case "APPROVED":
         return "border-emerald-300 bg-emerald-50 text-emerald-700";
@@ -245,12 +245,12 @@ export function ParentInvoiceHub({
         </select>
       </div>
 
-      {filtered.length ? filtered.map((invoice) => {
-        const completion = invoice.totalAmount > 0 ? Math.min(100, (invoice.amountPaid / invoice.totalAmount) * 100) : 0;
-        const contest = contests.find((item) => item.invoiceId === invoice.id);
-        const optionalItems = invoice.items.filter((item) => isOptionalItem(item));
-        const removalMap = new Map((contest?.items ?? []).map((item) => [item.invoiceItemId, item.proposedAmount === 0]));
-        const groupedItems = invoice.items.reduce<Record<string, InvoiceItem[]>>((accumulator, item) => {
+      {filtered.length ? filtered.map((bill) => {
+        const completion = bill.totalAmount > 0 ? Math.min(100, (bill.amountPaid / bill.totalAmount) * 100) : 0;
+        const contest = contests.find((item) => item.billId === bill.id);
+        const optionalItems = bill.items.filter((item) => isOptionalItem(item));
+        const removalMap = new Map((contest?.items ?? []).map((item) => [item.billItemId, item.proposedAmount === 0]));
+        const groupedItems = bill.items.reduce<Record<string, BillItem[]>>((accumulator, item) => {
           const key = item.groupName?.trim() || "General";
           accumulator[key] = [...(accumulator[key] ?? []), item];
           return accumulator;
@@ -258,15 +258,15 @@ export function ParentInvoiceHub({
         const groupedEntries = Object.entries(groupedItems);
 
         return (
-          <article key={invoice.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
+          <article key={bill.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
             <div className="bg-gradient-to-r from-[var(--brand-primary)] to-[var(--brand-secondary)] p-4 text-white">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
-                  <p className="text-sm font-semibold">Bill #{invoice.invoiceNumber}</p>
-                  <p className="text-xs text-white/80">{invoice.studentName} • {invoice.className ?? "Class"} • {invoice.termName} / {invoice.sessionName}</p>
+                  <p className="text-sm font-semibold">Bill #{bill.invoiceNumber}</p>
+                  <p className="text-xs text-white/80">{bill.studentName} • {bill.className ?? "Class"} • {bill.termName} / {bill.sessionName}</p>
                 </div>
-                <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${invoiceStatusStyle(invoice.status)}`}>
-                  {paymentStatusLabel(invoice.status)}
+                <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${billStatusStyle(bill.status)}`}>
+                  {paymentStatusLabel(bill.status)}
                 </span>
               </div>
             </div>
@@ -275,24 +275,24 @@ export function ParentInvoiceHub({
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 <div className="rounded-xl border border-rose-200 bg-rose-50 p-3">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-rose-700">Outstanding Fee</p>
-                  <p className="mt-1 text-base font-bold text-slate-900">{money(invoice.balance)}</p>
+                  <p className="mt-1 text-base font-bold text-slate-900">{money(bill.balance)}</p>
                 </div>
                 <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-3">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-indigo-700">Total</p>
-                  <p className="mt-1 text-base font-bold text-slate-900">{money(invoice.totalAmount)}</p>
+                  <p className="mt-1 text-base font-bold text-slate-900">{money(bill.totalAmount)}</p>
                 </div>
                 <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">Paid</p>
-                  <p className="mt-1 text-base font-bold text-slate-900">{money(invoice.amountPaid)}</p>
+                  <p className="mt-1 text-base font-bold text-slate-900">{money(bill.amountPaid)}</p>
                 </div>
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">Balance</p>
-                  <p className="mt-1 text-sm font-bold text-slate-900">{money(invoice.balance)}</p>
+                  <p className="mt-1 text-sm font-bold text-slate-900">{money(bill.balance)}</p>
                 </div>
               </div>
 
               <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
-                Due Date: {invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString("en-GB") : "Not set"}
+                Due Date: {bill.dueDate ? new Date(bill.dueDate).toLocaleDateString("en-GB") : "Not set"}
               </div>
 
               <div className="mt-3">
@@ -310,7 +310,7 @@ export function ParentInvoiceHub({
                   <div className="border-b border-slate-200 bg-slate-50 px-3 py-2">
                     <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-700">Fee Breakdown</h4>
                   </div>
-                  {invoice.items.length ? (
+                  {bill.items.length ? (
                     <div className="overflow-x-auto">
                       <table className="min-w-full text-sm">
                         <thead>
@@ -322,12 +322,12 @@ export function ParentInvoiceHub({
                         </thead>
                         <tbody>
                           {groupedEntries.map(([groupName, groupItems]) => (
-                            <Fragment key={`group-${invoice.id}-${groupName}`}>
+                            <Fragment key={`group-${bill.id}-${groupName}`}>
                               <tr className="bg-slate-100">
                                 <td className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-700" colSpan={3}>{groupName}</td>
                               </tr>
                               {groupItems.map((item, idx) => {
-                                const share = invoice.totalAmount > 0 ? (item.amount / invoice.totalAmount) * 100 : 0;
+                                const share = bill.totalAmount > 0 ? (item.amount / bill.totalAmount) * 100 : 0;
                                 return (
                                   <tr key={item.id} className={idx % 2 ? "bg-white" : "bg-slate-50/70"}>
                                     <td className="px-3 py-2 font-medium text-slate-700">
@@ -346,7 +346,7 @@ export function ParentInvoiceHub({
                       </table>
                     </div>
                   ) : (
-                    <p className="px-3 py-3 text-sm text-slate-500">No line items available for this invoice.</p>
+                    <p className="px-3 py-3 text-sm text-slate-500">No line items available for this bill.</p>
                   )}
                 </section>
 
@@ -367,24 +367,24 @@ export function ParentInvoiceHub({
                     </div>
                   </dl>
                   <div className="mt-2 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-2 text-[11px] text-blue-700">
-                    {invoice.paymentInstructions ?? bank.bankInstructions ?? "Use bill number as narration."}
+                    {bill.paymentInstructions ?? bank.bankInstructions ?? "Use bill number as narration."}
                   </div>
                 </section>
               </div>
 
               <div className="mt-4 flex flex-wrap gap-2 text-xs">
-                <Link href={`/invoice/${invoice.id}`} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-50">Open Bill</Link>
-                <Link href={`/invoice/${invoice.id}`} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-50">Print Bill</Link>
+                <Link href={`/invoice/${bill.id}`} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-50">Open Bill</Link>
+                <Link href={`/invoice/${bill.id}`} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-50">Print Bill</Link>
                 <button
                   type="button"
                   className="rounded-lg border border-blue-300 bg-blue-50 px-3 py-1.5 font-medium text-blue-700"
                   onClick={() => {
-                    setActiveContestInvoice(activeContestInvoice === invoice.id ? null : invoice.id);
+                    setActiveContestBill(activeContestBill === bill.id ? null : bill.id);
                     setContestComment(contest?.parentComment ?? "");
                     const initial: Record<string, boolean> = {};
-                    invoice.items.forEach((item) => {
+                    bill.items.forEach((item) => {
                       if (isOptionalItem(item)) {
-                        const requestedRemoval = (contest?.items ?? []).some((row) => row.invoiceItemId === item.id && row.proposedAmount === 0);
+                        const requestedRemoval = (contest?.items ?? []).some((row) => row.billItemId === item.id && row.proposedAmount === 0);
                         initial[item.id] = !requestedRemoval;
                       }
                     });
@@ -393,7 +393,7 @@ export function ParentInvoiceHub({
                 >
                   Contest Bill
                 </button>
-                <button type="button" className="rounded-lg bg-[var(--brand-primary)] px-3 py-1.5 font-medium text-white" onClick={() => setActiveInvoice(activeInvoice === invoice.id ? null : invoice.id)}>
+                <button type="button" className="rounded-lg bg-[var(--brand-primary)] px-3 py-1.5 font-medium text-white" onClick={() => setActiveBill(activeBill === bill.id ? null : bill.id)}>
                   I have paid
                 </button>
               </div>
@@ -412,7 +412,7 @@ export function ParentInvoiceHub({
                 </div>
               ) : null}
 
-              {activeContestInvoice === invoice.id ? (
+              {activeContestBill === bill.id ? (
                 <div className="mt-3 space-y-2 rounded-xl border border-blue-200 bg-blue-50/60 p-3 text-sm">
                   <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Contest Bill (Optional Fees Removal)</p>
                   {optionalItems.length ? optionalItems.map((item) => (
@@ -436,17 +436,17 @@ export function ParentInvoiceHub({
                     onChange={(e) => setContestComment(e.target.value)}
                   />
                   <div className="flex gap-2">
-                    <button type="button" className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white" onClick={() => submitBillContest(invoice)}>
+                    <button type="button" className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white" onClick={() => submitBillContest(bill)}>
                       Submit Contest
                     </button>
-                    <button type="button" className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs" onClick={() => setActiveContestInvoice(null)}>
+                    <button type="button" className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs" onClick={() => setActiveContestBill(null)}>
                       Cancel
                     </button>
                   </div>
                 </div>
               ) : null}
 
-              {activeInvoice === invoice.id ? (
+              {activeBill === bill.id ? (
                 <div className="mt-3 grid gap-2 rounded-xl border border-slate-200 bg-white/85 p-3 text-sm md:grid-cols-2 dark:bg-slate-900/70">
                   <input className="rounded-md border border-slate-300 px-3 py-2" placeholder="Amount paid" value={formState.amountPaid} onChange={(e) => setFormState((s) => ({ ...s, amountPaid: e.target.value }))} />
                   <select className="rounded-md border border-slate-300 px-3 py-2" value={formState.paymentMethod} onChange={(e) => setFormState((s) => ({ ...s, paymentMethod: e.target.value }))}>
@@ -463,13 +463,13 @@ export function ParentInvoiceHub({
                     className="rounded-md border border-slate-300 px-3 py-2"
                     onChange={(e) => setProofFile(e.target.files?.[0] ?? null)}
                   />
-                  <button type="button" className="rounded-md bg-emerald-600 px-3 py-2 font-medium text-white md:col-span-2" onClick={() => submitPaymentNotice(invoice.id)}>Submit Pending Confirmation</button>
+                  <button type="button" className="rounded-md bg-emerald-600 px-3 py-2 font-medium text-white md:col-span-2" onClick={() => submitPaymentNotice(bill.id)}>Submit Pending Confirmation</button>
                 </div>
               ) : null}
             </div>
           </article>
         );
-      }) : <div className="rounded-xl border border-dashed border-slate-300 bg-white/70 p-6 text-center text-sm text-slate-500">No invoices match this filter.</div>}
+      }) : <div className="rounded-xl border border-dashed border-slate-300 bg-white/70 p-6 text-center text-sm text-slate-500">No bills match this filter.</div>}
     </section>
   );
 }

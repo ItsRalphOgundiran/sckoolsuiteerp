@@ -1,0 +1,108 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { auth } from "@/auth";
+import { prisma } from "@/lib/prisma";
+import { createAuditLog } from "@/lib/audit-log";
+
+const correspondenceSchema = z.object({
+  senderName: z.string().min(1).max(100),
+  type: z.enum(["INCOMING", "OUTGOING"]),
+  subject: z.string().min(1).max(200),
+  description: z.string().min(1),
+  senderAddress: z.string().optional().nullable(),
+});
+
+function isAuthorized(role?: string) {
+  return role ? ["SCHOOL_ADMIN", "PRINCIPAL", "SUPER_ADMIN", "RECEPTIONIST"].includes(role) : false;
+}
+
+async function generateRefNumber(schoolId: string): Promise<string> {
+  const config = await prisma.schoolSetting.findUnique({
+    where: { schoolId_key: { schoolId, key: "receptionConfig" } },
+  });
+  
+  let prefix = "CORR";
+  let digit = 3;
+  
+  if (config?.value) {
+    try {
+      const parsed = JSON.parse(config.value);
+      if (parsed.correspondence) {
+        prefix = parsed.correspondence.prefix || "CORR";
+        digit = parsed.correspondence.digit || 3;
+      }
+    } catch {}
+  }
+
+  const last = await prisma.correspondence.findFirst({
+    where: { schoolId },
+    orderBy: { createdAt: "desc" },
+  });
+
+  let nextNumber = 1;
+  if (last?.refNumber) {
+    const match = last.refNumber.match(/(\d+)$/);
+    if (match) nextNumber = parseInt(match[1]) + 1;
+  }
+
+  return `${prefix}${nextNumber.toString().padStart(digit, "0")}`;
+}
+
+export async function GET(request: Request) {
+  const session = await auth();
+  if (!session?.user?.schoolId || !isAuthorized(session.user.role)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const items = await prisma.correspondence.findMany({
+      where: { schoolId: session.user.schoolId },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return NextResponse.json({ items });
+  } catch (error) {
+    console.error("Error fetching correspondence:", error);
+    return NextResponse.json({ error: "Failed to fetch correspondence" }, { status: 500 });
+  }
+}
+
+export async function POST(request: Request) {
+  const session = await auth();
+  if (!session?.user?.schoolId || !isAuthorized(session.user.role)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const json = await request.json();
+    const validated = correspondenceSchema.parse(json);
+    
+    const refNumber = await generateRefNumber(session.user.schoolId);
+
+    const item = await prisma.correspondence.create({
+      data: {
+        ...validated,
+        refNumber,
+        schoolId: session.user.schoolId,
+        status: "PENDING",
+      },
+    });
+
+    await createAuditLog({
+      userId: session.user.id!,
+      schoolId: session.user.schoolId,
+      action: "CREATE",
+      entity: "Correspondence",
+      entityId: item.id,
+      details: `Recorded correspondence ${refNumber}`,
+    });
+
+    return NextResponse.json({ item }, { status: 201 });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.errors }, { status: 400 });
+    }
+    console.error("Error creating correspondence:", error);
+    return NextResponse.json({ error: "Failed to create correspondence" }, { status: 500 });
+  }
+}

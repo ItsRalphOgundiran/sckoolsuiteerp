@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SckoolSuite ERP - Production Deployment Guide</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background: #fff;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 3px solid #4f46e5;
+            padding-bottom: 30px;
+            margin-bottom: 40px;
+        }
+        .header h1 {
+            font-size: 2.5em;
+            color: #1e1b4b;
+            margin-bottom: 10px;
+        }
+        .header .subtitle {
+            font-size: 1.2em;
+            color: #6366f1;
+        }
+        .header .version {
+            font-size: 0.9em;
+            color: #6b7280;
+            margin-top: 10px;
+        }
+        h2 {
+            font-size: 1.8em;
+            color: #1e1b4b;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            border-left: 4px solid #4f46e5;
+            padding-left: 15px;
+        }
+        h3 {
+            font-size: 1.4em;
+            color: #312e81;
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+        h4 {
+            font-size: 1.1em;
+            color: #4338ca;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+        p {
+            margin-bottom: 15px;
+            text-align: justify;
+        }
+        .highlight-box {
+            background: #eef2ff;
+            border-left: 4px solid #4f46e5;
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        .warning-box {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        .success-box {
+            background: #d1fae5;
+            border-left: 4px solid #10b981;
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        code {
+            background: #f3f4f6;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        pre {
+            background: #1e1b4b;
+            color: #e0e7ff;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        pre code {
+            background: transparent;
+            padding: 0;
+            color: inherit;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #e5e7eb;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background: #4f46e5;
+            color: white;
+            font-weight: 600;
+        }
+        tr:nth-child(even) {
+            background: #f9fafb;
+        }
+        ul, ol {
+            margin: 15px 0 15px 30px;
+        }
+        li {
+            margin-bottom: 8px;
+        }
+        .option-card {
+            background: #fff;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 20px 0;
+        }
+        .option-card h3 {
+            margin-top: 0;
+            color: #4f46e5;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+        .badge-recommended {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .badge-enterprise {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        .badge-advanced {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .print-button {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #4f46e5;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .print-button:hover {
+            background: #4338ca;
+        }
+        @media print {
+            .print-button {
+                display: none;
+            }
+            body {
+                padding: 20px;
+            }
+        }
+        .footer {
+            margin-top: 60px;
+            padding-top: 30px;
+            border-top: 2px solid #e5e7eb;
+            text-align: center;
+            color: #6b7280;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <button class="print-button" onclick="window.print()">📄 Download / Print PDF</button>
+
+    <div class="header">
+        <h1>SckoolSuite ERP</h1>
+        <p class="subtitle">Production Database Setup & Deployment Guide</p>
+        <p class="version">Version 2.0 | June 2026</p>
+    </div>
+
+    <div class="highlight-box">
+        <strong>Quick Summary:</strong> This guide walks you through deploying SckoolSuite ERP with a production-ready PostgreSQL database. 
+        You'll learn to set up managed database hosting, configure environment variables, and deploy to cloud platforms like Vercel or Railway.
+    </div>
+
+    <h2>📋 Table of Contents</h2>
+    <ol>
+        <li><a href="#overview">Overview & Architecture</a></li>
+        <li><a href="#database-options">Database Hosting Options</a></li>
+        <li><a href="#railway-setup">Option 1: Railway (Easiest)</a></li>
+        <li><a href="#supabase-setup">Option 2: Supabase (Enterprise)</a></li>
+        <li><a href="#vps-setup">Option 3: Self-Hosted VPS</a></li>
+        <li><a href="#deployment">Application Deployment</a></li>
+        <li><a href="#security">Security Checklist</a></li>
+        <li><a href="#troubleshooting">Troubleshooting</a></li>
+    </ol>
+
+    <h2 id="overview">🏗️ Overview & Architecture</h2>
+    
+    <h3>Technology Stack</h3>
+    <table>
+        <tr>
+            <th>Component</th>
+            <th>Technology</th>
+            <th>Purpose</th>
+        </tr>
+        <tr>
+            <td>Frontend</td>
+            <td>Next.js 15 + React 19</td>
+            <td>User interface</td>
+        </tr>
+        <tr>
+            <td>Database</td>
+            <td>PostgreSQL 15+</td>
+            <td>Data storage</td>
+        </tr>
+        <tr>
+            <td>ORM</td>
+            <td>Prisma 6</td>
+            <td>Database access</td>
+        </tr>
+        <tr>
+            <td>Authentication</td>
+            <td>NextAuth.js v5</td>
+            <td>User login</td>
+        </tr>
+        <tr>
+            <td>Styling</td>
+            <td>Tailwind CSS 4</td>
+            <td>UI styling</td>
+        </tr>
+    </table>
+
+    <div class="warning-box">
+        <strong>⚠️ Important:</strong> The application has been configured for PostgreSQL. 
+        SQLite is no longer supported in production. You MUST use PostgreSQL for production deployments.
+    </div>
+
+    <h2 id="database-options">☁️ Database Hosting Options</h2>
+
+    <div class="option-card">
+        <h3>Option 1: Railway <span class="badge badge-recommended">RECOMMENDED</span></h3>
+        <p><strong>Best for:</strong> Quick setup, small to medium schools</p>
+        <p><strong>Pricing:</strong> Free tier available, then ~$5-20/month</p>
+        <p><strong>Difficulty:</strong> Beginner-friendly</p>
+        <ul>
+            <li>One-click PostgreSQL provisioning</li>
+            <li>Automatic backups</li>
+            <li>Connection pooling included</li>
+            <li>Deploy via Git push</li>
+        </ul>
+    </div>
+
+    <div class="option-card">
+        <h3>Option 2: Supabase <span class="badge badge-enterprise">ENTERPRISE</span></h3>
+        <p><strong>Best for:</strong> Large schools, high compliance requirements</p>
+        <p><strong>Pricing:</strong> Generous free tier, then ~$25+/month</p>
+        <p><strong>Difficulty:</strong> Intermediate</p>
+        <ul>
+            <li>Enterprise-grade PostgreSQL</li>
+            <li>Built-in connection pooling</li>
+            <li>Row-level security</li>
+            <li>Excellent for scaling</li>
+        </ul>
+    </div>
+
+    <div class="option-card">
+        <h3>Option 3: Self-Hosted VPS <span class="badge badge-advanced">ADVANCED</span></h3>
+        <p><strong>Best for:</strong> Data sovereignty, full control</p>
+        <p><strong>Pricing:</strong> $5-20/month for VPS</p>
+        <p><strong>Difficulty:</strong> Advanced (requires Linux knowledge)</p>
+        <ul>
+            <li>Complete data ownership</li>
+            <li>Full configuration control</li>
+            <li>Requires manual backup setup</li>
+        </ul>
+    </div>
+
+    <h2 id="railway-setup">🚂 Option 1: Railway Setup (Step-by-Step)</h2>
+
+    <h4>Step 1: Create Railway Account</h4>
+    <ol>
+        <li>Visit <a href="https://railway.app">https://railway.app</a></li>
+        <li>Click "Start for Free"</li>
+        <li>Sign up using GitHub (recommended) or email</li>
+        <li>Verify your email address</li>
+    </ol>
+
+    <h4>Step 2: Create New Project</h4>
+    <ol>
+        <li>Click "New Project"</li>
+        <li>Select "Provision PostgreSQL"</li>
+        <li>Wait 1-2 minutes for database to provision</li>
+        <li>Click on the PostgreSQL service card</li>
+    </ol>
+
+    <h4>Step 3: Get Database Connection String</h4>
+    <ol>
+        <li>In PostgreSQL service, click "Connect" tab</li>
+        <li>Look for "DATABASE_URL"</li>
+        <li>Click copy button (or click the value to reveal)</li>
+        <li>Save this somewhere secure - you'll need it!</li>
+    </ol>
+
+    <div class="success-box">
+        <strong>✅ Example Railway DATABASE_URL:</strong>
+        <pre>postgresql://postgres:AbCdEfGhIjKlMnOp@containers.railway.app:5432/railway</pre>
+    </div>
+
+    <h4>Step 4: Configure Environment Variables</h4>
+    <p>Create a <code>.env.local</code> file in your project root:</p>
+    <pre># Database (Railway PostgreSQL)
+DATABASE_URL="postgresql://username:password@containers.railway.app:5432/railway"
+DIRECT_URL="postgresql://username:password@containers.railway.app:5432/railway"
+
+# NextAuth Configuration
+NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_SECRET="your-random-secret-min-32-characters-long"
+
+# Node Environment
+NODE_ENV="development"</pre>
+
+    <div class="warning-box">
+        <strong>🔐 Generate NEXTAUTH_SECRET:</strong>
+        <pre>openssl rand -base64 32</pre>
+        Or use an online generator. Must be at least 32 characters.
+    </div>
+
+    <h4>Step 5: Install Dependencies</h4>
+    <pre>cd /path/to/sckoolsuiteerp
+npm install
+
+# Generate Prisma client for PostgreSQL
+npx prisma generate
+
+# Run database migrations
+npx prisma migrate deploy</pre>
+
+    <h4>Step 6: Start Development Server</h4>
+    <pre>npm run dev</pre>
+    <p>Visit <a href="http://localhost:3000/setup">http://localhost:3000/setup</a> to create your school.</p>
+
+    <h4>Step 7: Deploy to Railway</h4>
+    <pre># Install Railway CLI
+npm install -g @railway/cli
+
+# Login to Railway
+railway login
+
+# Link your project
+railway link
+
+# Deploy!
+railway up</pre>
+
+    <h2 id="supabase-setup">🔷 Option 2: Supabase Setup</h2>
+
+    <h4>Step 1: Create Supabase Project</h4>
+    <ol>
+        <li>Visit <a href="https://supabase.com">https://supabase.com</a></li>
+        <li>Sign in with GitHub</li>
+        <li>Click "New Project"</li>
+        <li>Choose organization and project name</li>
+        <li>Select region closest to your users</li>
+        <li>Set a secure database password (save this!)</li>
+        <li>Wait for project creation (2-3 minutes)</li>
+    </ol>
+
+    <h4>Step 2: Get Connection Strings</h4>
+    <ol>
+        <li>In your project dashboard, click "Connect"</li>
+        <li>Go to "ORMs" tab</li>
+        <li>Find "Prisma" section</li>
+        <li>Copy both URLs:</li>
+    </ol>
+
+    <div class="success-box">
+        <strong>Connection Settings for Supabase:</strong>
+        <pre># Transaction pooler (for queries)
+DATABASE_URL="postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres?pgbouncer=true"
+
+# Direct connection (for migrations)
+DIRECT_URL="postgresql://postgres:[password]@db.[ref].supabase.co:5432/postgres"</pre>
+    </div>
+
+    <h4>Step 3: Configure Environment</h4>
+    <pre># .env.local
+DATABASE_URL="your-supabase-pooler-url"
+DIRECT_URL="your-supabase-direct-url"
+NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_SECRET="your-generated-secret"
+NODE_ENV="development"</pre>
+
+    <h4>Step 4: Deploy Migrations</h4>
+    <pre>npx prisma migrate deploy</pre>
+
+    <h2 id="vps-setup">🖥️ Option 3: Self-Hosted VPS Setup</h2>
+
+    <h4>Requirements</h4>
+    <ul>
+        <li>Ubuntu 22.04 LTS server</li>
+        <li>2+ CPU cores</li>
+        <li>4GB RAM minimum (8GB recommended)</li>
+        <li>50GB SSD storage</li>
+    </ul>
+
+    <h4>Installation Commands</h4>
+    <pre># Update system
+sudo apt update && sudo apt upgrade -y
+
+# Install PostgreSQL
+sudo apt install postgresql postgresql-contrib -y
+
+# Start and enable PostgreSQL
+sudo systemctl start postgresql
+sudo systemctl enable postgresql
+
+# Create database and user
+sudo -u postgres psql -c "CREATE DATABASE sckoolsuite;"
+sudo -u postgres psql -c "CREATE USER sckooladmin WITH ENCRYPTED PASSWORD 'your-secure-password';"
+sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE sckoolsuite TO sckooladmin;"
+sudo -u postgres psql -c "ALTER USER sckooladmin WITH SUPERUSER;"
+
+# Configure PostgreSQL for remote connections
+sudo nano /etc/postgresql/14/main/postgresql.conf
+# Set: listen_addresses = '*'
+
+sudo nano /etc/postgresql/14/main/pg_hba.conf
+# Add: host all all 0.0.0.0/0 md5
+
+sudo systemctl restart postgresql
+
+# Open firewall
+sudo ufw allow 5432/tcp
+sudo ufw reload</pre>
+
+    <h2 id="deployment">🚀 Application Deployment</h2>
+
+    <h3>Deploy to Vercel (Recommended)</h3>
+    <pre># Install Vercel CLI
+npm i -g vercel
+
+# Login
+vercel login
+
+# Initialize project
+vercel
+
+# Add environment variables in Vercel Dashboard:
+# 1. Go to Project Settings → Environment Variables
+# 2. Add DATABASE_URL
+# 3. Add DIRECT_URL (if using Supabase)
+# 4. Add NEXTAUTH_SECRET
+# 5. Add NEXTAUTH_URL (your production domain)
+
+# Deploy to production
+vercel --prod</pre>
+
+    <h3>Environment Variables Reference</h3>
+    <table>
+        <tr>
+            <th>Variable</th>
+            <th>Required</th>
+            <th>Description</th>
+        </tr>
+        <tr>
+            <td>DATABASE_URL</td>
+            <td>Yes</td>
+            <td>PostgreSQL connection string</td>
+        </tr>
+        <tr>
+            <td>DIRECT_URL</td>
+            <td>Sometimes</td>
+            <td>Direct connection for migrations (Supabase)</td>
+        </tr>
+        <tr>
+            <td>NEXTAUTH_SECRET</td>
+            <td>Yes</td>
+            <td>32+ character random string</td>
+        </tr>
+        <tr>
+            <td>NEXTAUTH_URL</td>
+            <td>Yes</td>
+            <td>Your production domain</td>
+        </tr>
+        <tr>
+            <td>NODE_ENV</td>
+            <td>Yes</td>
+            <td>"production" for live sites</td>
+        </tr>
+    </table>
+
+    <h2 id="security">🔒 Security Checklist</h2>
+    
+    <div class="warning-box">
+        <strong>Before going live, verify:</strong>
+    </div>
+
+    <ul>
+        <li>☐ Database not publicly accessible (use private networking)</li>
+        <li>☐ Strong database password (32+ random characters)</li>
+        <li>☐ NEXTAUTH_SECRET is cryptographically random</li>
+        <li>☐ Environment variables set in hosting platform (not in code)</li>
+        <li>☐ HTTPS enabled on production domain</li>
+        <li>☐ Database backups configured (daily automated)</li>
+        <li>☐ .env files added to .gitignore</li>
+        <li>☐ Two-factor authentication enabled on hosting accounts</li>
+    </ul>
+
+    <h2 id="troubleshooting">🔧 Troubleshooting</h2>
+
+    <h4>"Can't reach database server" Error</h4>
+    <pre># Verify connection string format
+postgresql://username:password@hostname:5432/database
+
+# Test connection with psql
+psql "postgresql://username:password@hostname:5432/database"
+
+# Check if IP is allowlisted in database settings</pre>
+
+    <h4>Migration Failures</h4>
+    <pre># Reset and redeploy
+npx prisma migrate reset --force
+npx prisma migrate deploy
+
+# If still failing, check logs
+npx prisma migrate status</pre>
+
+    <h4>Connection Pool Exhausted</h4>
+    <p>With Supabase/Railway, connection pooling is handled automatically. For self-hosted, install PgBouncer:</p>
+    <pre>sudo apt install pgbouncer</pre>
+
+    <h4>SSL/TLS Connection Errors</h4>
+    <p>Add to connection string:</p>
+    <pre>?sslmode=require</pre>
+
+    <div class="success-box">
+        <strong>✅ Success!</strong><br>
+        After completing this guide, your SckoolSuite ERP will be running on a production PostgreSQL database.
+        Visit <code>/setup</code> on your domain to create your school, admin user, and start using the system.
+    </div>
+
+    <div class="footer">
+        <p>SckoolSuite ERP - Production Deployment Guide v2.0</p>
+        <p>For support, contact your technical team or refer to documentation.</p>
+        <p>© 2026 SckoolSuite. All rights reserved.</p>
+    </div>
+
+</body>
+</html>

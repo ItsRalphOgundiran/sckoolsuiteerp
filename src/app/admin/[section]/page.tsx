@@ -1,11 +1,22 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MetricGrid, SimpleTable } from "@/components/dashboard-kit";
-import { InvoiceContestReviewPanel } from "@/components/invoice-contest-review-panel";
+import { ModernPortalShell } from "@/components/modern-portal-shell";
+import { DashboardHeader, StatCard, SectionCard } from "@/components/modern-dashboard";
+import { BillContestReviewPanel } from "@/components/bill-contest-review-panel";
 import { AdminApprovalActions } from "./admin-approval-actions";
-import { AdminFinanceManager } from "./admin-finance-manager";
-import { PortalShell } from "@/components/portal-shell";
+import { StudentManager } from "./student-manager";
+import { ParentManager } from "./parent-manager";
+import { TeacherManager } from "./teacher-manager";
+import { ClassManager } from "./class-manager";
+import { SubjectManager } from "./subject-manager";
+import { AttendanceManager } from "./attendance-manager";
+import { LMSManager } from "./lms-manager";
+import { AnnouncementManager } from "./announcement-manager";
+import { TransportManager } from "./transport-manager";
+import { ReceptionManager } from "./reception-manager";
+import { FeeProfileManager } from "./fee-profile-manager";
+import { BillManager } from "./bill-manager";
 import { requireRole } from "@/lib/auth-guards";
 import { getAdminOverview, getCoreSchoolDataByContext, getCurrentSchoolByUser, getUserAcademicContext } from "@/lib/data";
 import { adminModuleScopeBySection } from "@/lib/module-blueprint";
@@ -244,26 +255,26 @@ export default async function AdminSectionPage({ params }: { params: Promise<{ s
     fees: [
       { label: "Fee Groups", value: String(feeGroupCount), helper: "Active groups" },
       { label: "Concessions", value: "Ready", helper: "Discount and waiver support" },
-      { label: "Bills", value: String(core.invoices.length), helper: "Generated billing records" },
+      { label: "Bills", value: String(core.bills.length), helper: "Generated billing records" },
       { label: "Outstanding", value: naira(overview.outstanding), helper: "Unpaid balances" },
     ],
     finance: [
-      { label: "Bills", value: String(core.invoices.length), helper: "Billing records" },
+      { label: "Bills", value: String(core.bills.length), helper: "Billing records" },
       { label: "Payments", value: String(core.payments.length), helper: "Payment entries" },
       { label: "Outstanding", value: naira(overview.outstanding), helper: "Balance due" },
       { label: "Fee Structures", value: String(finance.feeStructures.length), helper: "Dynamic fee setup" },
     ],
     invoices: [
-      { label: "Bills", value: String(core.invoices.length), helper: "Generated bills" },
+      { label: "Bills", value: String(core.bills.length), helper: "Generated bills" },
       { label: "Paid", value: naira(overview.totalPaid), helper: "Collected value" },
       { label: "Outstanding", value: naira(overview.outstanding), helper: "Open balances" },
-      { label: "Receipts", value: String(core.invoices.filter((item) => item.receipt).length), helper: "Issued proof of payment" },
+      { label: "Receipts", value: String(core.bills.filter((item) => item.receipt).length), helper: "Issued proof of payment" },
     ],
     payments: [
       { label: "Payments", value: String(core.payments.length), helper: "Recorded collections" },
       { label: "Collected", value: naira(overview.totalPaid), helper: "Actual receipts" },
-      { label: "Bills", value: String(core.invoices.length), helper: "Billing queue" },
-      { label: "Receipts", value: String(core.invoices.filter((item) => item.receipt).length), helper: "Validated payments" },
+      { label: "Bills", value: String(core.bills.length), helper: "Billing queue" },
+      { label: "Receipts", value: String(core.bills.filter((item) => item.receipt).length), helper: "Validated payments" },
     ],
     results: [
       { label: "Assessment Types", value: String(academic.assessmentTypes.length), helper: "Weightable scoring blocks" },
@@ -328,22 +339,14 @@ export default async function AdminSectionPage({ params }: { params: Promise<{ s
   }));
 
   return (
-    <PortalShell
+    <ModernPortalShell
       role={user.role}
       schoolName={profile.school.name}
       schoolLogoUrl={profile.school.branding?.logoUrl ?? undefined}
       userName={user.name ?? "Admin"}
       pathname={`/admin/${section}`}
-      currentSessionName={context.session?.name}
-      currentTermName={context.term?.name}
-      sessions={core.sessions.map((item) => ({ id: item.id, name: item.name }))}
-      terms={core.terms.map((item) => ({ id: item.id, name: item.name, sessionId: item.sessionId }))}
-      selectedSessionId={context.session?.id}
-      selectedTermId={context.term?.id}
-      primaryColor={profile.school.branding?.primaryColor}
-      secondaryColor={profile.school.branding?.secondaryColor}
     >
-      <section className="space-y-4">
+      <div className="space-y-6">
         {!setup.status.setupCompleted ? (
           <Card className="border-amber-200 bg-amber-50" data-testid="setup-incomplete-banner">
             <CardHeader className="pb-2">
@@ -380,7 +383,7 @@ export default async function AdminSectionPage({ params }: { params: Promise<{ s
                 );
               })()}
               <p className="text-xs font-medium text-amber-800">
-                &#9888; Invoice generation and result publishing are locked until setup is activated.
+                &#9888; Bill generation and result publishing are locked until setup is activated.
               </p>
               <Link
                 href="/admin/setup"
@@ -392,25 +395,19 @@ export default async function AdminSectionPage({ params }: { params: Promise<{ s
             </CardContent>
           </Card>
         ) : null}
-        <Card>
-          <CardHeader>
-            <CardTitle>{blueprint.title}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-sm text-slate-600">{blueprint.subtitle}</p>
-            {section === "fees" || section === "finance" ? null : (
-              <div className="flex flex-wrap gap-2">
-                {blueprint.actionChips.map((item) => (
-                  <span key={item} className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700">
-                    {item}
-                  </span>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <DashboardHeader title={blueprint.title} subtitle={blueprint.subtitle} />
 
-        <MetricGrid items={metrics} />
+        {/* Stats Grid */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {metrics.slice(0, 4).map((metric) => (
+            <StatCard
+              key={metric.label}
+              title={metric.label}
+              value={metric.value}
+              iconName={metric.label.toLowerCase().includes("student") ? "graduationCap" : metric.label.toLowerCase().includes("teacher") || metric.label.toLowerCase().includes("staff") ? "users" : metric.label.toLowerCase().includes("fee") || metric.label.toLowerCase().includes("bill") || metric.label.toLowerCase().includes("payment") || metric.label.toLowerCase().includes("outstanding") || metric.label.toLowerCase().includes("paid") ? "dollarSign" : "bookOpen"}
+            />
+          ))}
+        </div>
 
         {(section === "payments" || section === "finance") && !setupLocked ? (
           <AdminApprovalActions mode="payments" sessionId={context.session?.id} termId={context.term?.id} />
@@ -420,9 +417,31 @@ export default async function AdminSectionPage({ params }: { params: Promise<{ s
           <AdminApprovalActions mode="results" sessionId={context.session?.id} termId={context.term?.id} />
         ) : null}
 
-        {section === "invoices" && !setupLocked ? <InvoiceContestReviewPanel currentRole={user.role} /> : null}
+        {section === "invoices" && !setupLocked ? <BillContestReviewPanel currentRole={user.role} /> : null}
 
-        {(section === "fees" || section === "finance") && !setupLocked ? <AdminFinanceManager /> : null}
+        {(section === "fees" || section === "finance") && !setupLocked ? <FeeProfileManager /> : null}
+
+        {section === "students" ? <StudentManager /> : null}
+
+        {section === "parents" ? <ParentManager /> : null}
+
+        {section === "teachers" ? <TeacherManager /> : null}
+
+        {section === "classes" ? <ClassManager /> : null}
+
+        {section === "subjects" ? <SubjectManager /> : null}
+
+        {section === "attendance" ? <AttendanceManager /> : null}
+
+        {section === "lms" ? <LMSManager /> : null}
+
+        {section === "announcements" ? <AnnouncementManager /> : null}
+
+        {section === "transport" ? <TransportManager /> : null}
+
+        {section === "reception" ? <ReceptionManager /> : null}
+
+        {section === "bills" ? <BillManager /> : null}
 
         {setupLocked ? (
           <Card className="border-rose-200 bg-rose-50">
@@ -435,85 +454,31 @@ export default async function AdminSectionPage({ params }: { params: Promise<{ s
           </Card>
         ) : null}
 
-        {section === "fees" || section === "finance" ? null : (
-          <div className="grid gap-4 xl:grid-cols-2">
-          <SimpleTable
-            title={section === "classes" ? "Classes & Arms" : section === "subjects" ? "Subject Allocation" : section === "finance" || section === "fees" ? "Fee Structures" : "Operational Snapshot"}
-            headers={["Name", "Detail", "Status"]}
-            rows={section === "classes" ? listToRows(classRows) : section === "subjects" ? listToRows(subjectRows) : section === "finance" || section === "fees" ? listToRows(feeRows) : listToRows([
-              { name: "Admissions", detail: "Review and enroll applicants", status: "Active" },
-              { name: "Communication", detail: "Parent messages and alerts", status: "Ready" },
-              { name: "Report Cards", detail: "Publish results and transcripts", status: "Ready" },
-            ])}
-          />
 
-          <Card>
-            <CardHeader>
-              <CardTitle>{section === "classes" ? "Class Setup Notes" : section === "finance" || section === "fees" ? "Billing Notes" : section === "reception" ? "Admission Notes" : "Module Notes"}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm text-slate-600">
-              {section === "classes" ? (
-                <>
-                  <p>Each class can carry multiple arms such as A, B, and C.</p>
-                  <p>Each arm can hold a different subject list so junior, senior, and mixed streams stay separate.</p>
-                  <p className="text-xs text-slate-500">Current config ships {academic.classes.length} configured classes and {academic.subjects.length} subject links.</p>
-                </>
-              ) : section === "finance" || section === "fees" ? (
-                <>
-                  <p>Fee groups, concessions, and billing structure should live in one finance bundle.</p>
-                  <p>Bills and payment records should stay downstream from the fee engine.</p>
-                  <p className="text-xs text-slate-500">Current outstanding balance: {naira(overview.outstanding)}.</p>
-                </>
-              ) : section === "reception" ? (
-                <>
-                  <p>Front desk should manage applicants, document checks, interviews, and enrollment conversion.</p>
-                  <p>Reception should feed directly into student creation and class placement.</p>
-                  <p className="text-xs text-slate-500">Use the admissions flow before moving any applicant into billing.</p>
-                </>
-              ) : section === "settings" ? (
-                <>
-                  <p>The configuration engine should be the single place for sessions, terms, classes, arms, subjects, fees, and visibility rules.</p>
-                  <p>Branding, calendar, and portal controls should stay adjacent to the engine.</p>
-                  <p className="text-xs text-slate-500">Open the Dynamic Configuration Engine for versioned school setup.</p>
-                </>
-              ) : (
-                <>
-                  <p>This section is now part of a bundled module model instead of a flat generic screen.</p>
-                  <p>Use the sidebar to jump between operational bundles and keep the page focused on one school workflow.</p>
-                  <p className="text-xs text-slate-500">Current term: {context.term?.name ?? "-"} • Updated {formatDate(new Date())}</p>
-                </>
-              )}
-            </CardContent>
-          </Card>
-          </div>
-        )}
-
-        <Card>
-          <CardHeader>
-            <CardTitle>{moduleScope.module} Module Scope</CardTitle>
-          </CardHeader>
-          <CardContent>
+        {/* Module Scope - Hidden for sections that show it in their manager */}
+        {!["students", "reception", "classes"].includes(section) && (
+          <SectionCard title={`${moduleScope.module} Module Scope`}>
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
-                    <th className="px-2 py-2">Submodule</th>
-                    <th className="px-2 py-2">Screens</th>
+                    <th className="px-2 py-2 font-medium">Submodule</th>
+                    <th className="px-2 py-2 font-medium">Screens</th>
                   </tr>
                 </thead>
                 <tbody>
                   {moduleScope.submodules.map((item) => (
-                    <tr key={`${section}-${item.name}`} className="border-b border-slate-100">
-                      <td className="px-2 py-2 font-medium text-slate-800">{item.name}</td>
-                      <td className="px-2 py-2 text-slate-600">{item.screens.join(" • ")}</td>
+                    <tr key={`${section}-${item.name}`} className="border-b border-slate-100 last:border-0">
+                      <td className="px-2 py-3 font-medium text-slate-800">{item.name}</td>
+                      <td className="px-2 py-3 text-slate-600">{item.screens.join(" • ")}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          </CardContent>
-        </Card>
-      </section>
-    </PortalShell>
+          </SectionCard>
+        )}
+      </div>
+    </ModernPortalShell>
   );
 }

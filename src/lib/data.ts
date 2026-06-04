@@ -19,7 +19,7 @@ export async function getCurrentSchoolByUser(userId: string) {
 }
 
 export async function getAdminOverview(schoolId: string) {
-  const [students, teachers, parents, classes, invoices, paid, attendance, announcements] = await Promise.all([
+  const [students, teachers, parents, classes, bills, paid, attendance, announcements] = await Promise.all([
     prisma.student.count({ where: { schoolId } }),
     prisma.teacher.count({ where: { schoolId } }),
     prisma.parent.count({ where: { schoolId } }),
@@ -37,8 +37,8 @@ export async function getAdminOverview(schoolId: string) {
     classes,
     attendance,
     announcements: announcements.filter((item) => !isContestAnnouncementEntry(item)).length,
-    totalInvoiced: invoices._sum.totalAmount ?? 0,
-    outstanding: invoices._sum.balance ?? 0,
+    totalInvoiced: bills._sum.totalAmount ?? 0,
+    outstanding: bills._sum.balance ?? 0,
     totalPaid: paid._sum.amount ?? 0,
   };
 }
@@ -73,7 +73,7 @@ export async function getCoreSchoolDataByContext(schoolId: string, context?: { s
     classes,
     subjects,
     feeItems,
-    invoices,
+    bills,
     payments,
     scores,
     lessons,
@@ -142,7 +142,7 @@ export async function getCoreSchoolDataByContext(schoolId: string, context?: { s
     classes,
     subjects,
     feeItems,
-    invoices,
+    bills,
     payments,
     scores,
     lessons,

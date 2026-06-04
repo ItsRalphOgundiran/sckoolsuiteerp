@@ -104,7 +104,8 @@ export async function POST(request: Request) {
   const { step, data } = parsed.data;
 
   try {
-    if (step === "school-profile") {
+    // Handle old school-profile format (from old wizard)
+    if (step === "school-profile" && data.schoolName !== undefined) {
       const schoolName = asString(data.schoolName);
       const address = asString(data.address);
       const phone = asString(data.phone);
@@ -139,7 +140,8 @@ export async function POST(request: Request) {
       });
     }
 
-    if (step === "academic-setup") {
+    // Handle old academic-setup format (from old wizard)
+    if (step === "academic-setup" && data.currentSession !== undefined) {
       const sessionName = asString(data.currentSession);
       const termName = asString(data.currentTerm);
       const startDate = asString(data.termStartDate);
@@ -198,6 +200,146 @@ export async function POST(request: Request) {
         update: { value: resultPublicationSetting || "manual" },
         create: { schoolId, key: "result_publication_setting", value: resultPublicationSetting || "manual" },
       });
+    }
+
+    // Handle new simplified school profile format
+    // Note: data already contains { profile } or { academic } directly
+    const newFormatData = data as Record<string, unknown>;
+    
+    if (step === "school-profile" && newFormatData.profile) {
+      const profile = newFormatData.profile as Record<string, string>;
+      
+      const updateData: Record<string, string | null | undefined> = {};
+      
+      if (profile.name) updateData.name = profile.name;
+      if (profile.email) updateData.email = profile.email;
+      if (profile.phone !== undefined) updateData.phone = profile.phone || null;
+      if (profile.address !== undefined) updateData.address = profile.address || null;
+      if (profile.website !== undefined) updateData.website = profile.website || null;
+      if (profile.motto !== undefined) updateData.motto = profile.motto || null;
+      
+      await prisma.school.update({
+        where: { id: schoolId },
+        data: updateData,
+      });
+    }
+
+    // Handle new simplified academic setup format
+    if (step === "academic-setup" && newFormatData.academic) {
+      const academic = newFormatData.academic as {
+        sessions: Array<{ id: string; name: string; startDate?: string; endDate?: string }>;
+        terms: Array<{ id: string; name: string; sessionId: string; startDate?: string; endDate?: string }>;
+        currentSessionId?: string;
+        currentTermId?: string;
+      };
+
+      // Create/update sessions - merge without override
+      for (const session of academic.sessions || []) {
+        const isTempId = session.id.startsWith("session-");
+        if (isTempId) {
+          // Create new session
+          const newSession = await prisma.session.create({
+            data: {
+              schoolId,
+              name: session.name,
+              startDate: session.startDate ? new Date(session.startDate) : null,
+              endDate: session.endDate ? new Date(session.endDate) : null,
+              isCurrent: session.id === academic.currentSessionId,
+              status: "ACTIVE",
+            },
+          });
+          // Update term session references if needed
+          if (session.id === academic.currentSessionId) {
+            await prisma.schoolSetting.upsert({
+              where: { schoolId_key: { schoolId, key: "active_session_id" } },
+              update: { value: newSession.id },
+              create: { schoolId, key: "active_session_id", value: newSession.id },
+            });
+          }
+        } else {
+          // Update existing session
+          await prisma.session.update({
+            where: { id: session.id },
+            data: {
+              name: session.name,
+              startDate: session.startDate ? new Date(session.startDate) : undefined,
+              endDate: session.endDate ? new Date(session.endDate) : undefined,
+              isCurrent: session.id === academic.currentSessionId,
+            },
+          });
+        }
+      }
+
+      // Create/update terms - merge without override
+      for (const term of academic.terms || []) {
+        const isTempId = term.id.startsWith("term-");
+        if (isTempId) {
+          // Create new term
+          const newTerm = await prisma.term.create({
+            data: {
+              schoolId,
+              name: term.name,
+              sessionId: term.sessionId,
+              startDate: term.startDate ? new Date(term.startDate) : null,
+              endDate: term.endDate ? new Date(term.endDate) : null,
+              isCurrent: term.id === academic.currentTermId,
+              status: "ACTIVE",
+            },
+          });
+          if (term.id === academic.currentTermId) {
+            await prisma.schoolSetting.upsert({
+              where: { schoolId_key: { schoolId, key: "active_term_id" } },
+              update: { value: newTerm.id },
+              create: { schoolId, key: "active_term_id", value: newTerm.id },
+            });
+          }
+        } else {
+          // Update existing term
+          await prisma.term.update({
+            where: { id: term.id },
+            data: {
+              name: term.name,
+              sessionId: term.sessionId,
+              startDate: term.startDate ? new Date(term.startDate) : undefined,
+              endDate: term.endDate ? new Date(term.endDate) : undefined,
+              isCurrent: term.id === academic.currentTermId,
+            },
+          });
+        }
+      }
+
+      // Set active session/term from existing IDs
+      if (academic.currentSessionId && !academic.currentSessionId.startsWith("session-")) {
+        await prisma.schoolSetting.upsert({
+          where: { schoolId_key: { schoolId, key: "active_session_id" } },
+          update: { value: academic.currentSessionId },
+          create: { schoolId, key: "active_session_id", value: academic.currentSessionId },
+        });
+        await prisma.session.updateMany({
+          where: { schoolId, id: academic.currentSessionId },
+          data: { isCurrent: true },
+        });
+        await prisma.session.updateMany({
+          where: { schoolId, id: { not: academic.currentSessionId } },
+          data: { isCurrent: false },
+        });
+      }
+
+      if (academic.currentTermId && !academic.currentTermId.startsWith("term-")) {
+        await prisma.schoolSetting.upsert({
+          where: { schoolId_key: { schoolId, key: "active_term_id" } },
+          update: { value: academic.currentTermId },
+          create: { schoolId, key: "active_term_id", value: academic.currentTermId },
+        });
+        await prisma.term.updateMany({
+          where: { schoolId, id: academic.currentTermId },
+          data: { isCurrent: true },
+        });
+        await prisma.term.updateMany({
+          where: { schoolId, id: { not: academic.currentTermId } },
+          data: { isCurrent: false },
+        });
+      }
     }
 
     if (step === "classes-arms") {

@@ -5,7 +5,8 @@ import { LogOut } from "lucide-react";
 
 export function SignOutButton({ className }: { className?: string }) {
   const handleClick = async () => {
-    await signOut({ callbackUrl: `${window.location.origin}/login` });
+    // Use relative URL to stay on same domain
+    await signOut({ callbackUrl: "/login" });
   };
 
   return (

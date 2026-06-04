@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SckoolSuite ERP - Vercel Production Deployment Guide</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background: #fff;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 3px solid #000;
+            padding-bottom: 30px;
+            margin-bottom: 40px;
+        }
+        .header h1 { font-size: 2.2em; color: #000; margin-bottom: 10px; }
+        .header .subtitle { font-size: 1.1em; color: #666; }
+        .header .version { font-size: 0.85em; color: #999; margin-top: 10px; }
+        h2 {
+            font-size: 1.5em;
+            color: #000;
+            margin-top: 35px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #000;
+            padding-bottom: 8px;
+        }
+        h3 { font-size: 1.2em; color: #333; margin-top: 25px; margin-bottom: 12px; }
+        h4 { font-size: 1em; color: #555; margin-top: 18px; margin-bottom: 10px; font-weight: 600; }
+        p { margin-bottom: 12px; text-align: left; }
+        .highlight-box {
+            background: #f0f0f0;
+            border-left: 4px solid #000;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .warning-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffa500;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .success-box {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        code {
+            background: #e8e8e8;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        pre {
+            background: #1a1a1a;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            line-height: 1.4;
+        }
+        pre code { background: transparent; padding: 0; color: inherit; }
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 0.9em; }
+        th, td { border: 1px solid #ccc; padding: 10px; text-align: left; }
+        th { background: #333; color: white; font-weight: 600; }
+        tr:nth-child(even) { background: #f9f9f9; }
+        ul, ol { margin: 12px 0 12px 25px; }
+        li { margin-bottom: 6px; }
+        .step { background: #fafafa; border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px; }
+        .step-number { background: #000; color: white; padding: 3px 10px; border-radius: 50%; margin-right: 10px; font-weight: bold; }
+        .print-button {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #000;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+        .print-button:hover { background: #333; }
+        .badge { display: inline-block; padding: 3px 8px; border-radius: 3px; font-size: 0.75em; font-weight: 600; margin-left: 8px; }
+        .badge-recommended { background: #28a745; color: white; }
+        .badge-alt { background: #007bff; color: white; }
+        @media print { .print-button { display: none; } body { padding: 20px; } }
+        .footer { margin-top: 50px; padding-top: 20px; border-top: 1px solid #ccc; text-align: center; color: #666; font-size: 0.85em; }
+        .critical { color: #d32f2f; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <button class="print-button" onclick="window.print()">Save as PDF</button>
+
+    <div class="header">
+        <h1>SckoolSuite ERP</h1>
+        <p class="subtitle">Complete Vercel Production Deployment Guide</p>
+        <p class="version">Version 3.0 - June 2026 | For Production Use</p>
+    </div>
+
+    <div class="highlight-box">
+        <strong>Scope:</strong> This guide covers deploying SckoolSuite ERP to <strong>Vercel</strong> with a production PostgreSQL database. 
+        This is a serverless deployment requiring specific configurations for NextAuth, Prisma, and file uploads.
+    </div>
+
+    <h2>Table of Contents</h2>
+    <ol>
+        <li>Architecture Overview</li>
+        <li>Prerequisites</li>
+        <li>Database Setup (Supabase)</li>
+        <li>Project Configuration</li>
+        <li>Environment Variables</li>
+        <li>Vercel Deployment</li>
+        <li>Post-Deployment</li>
+        <li>Troubleshooting</li>
+        <li>Production Checklist</li>
+    </ol>
+
+    <h2>1. Architecture Overview</h2>
+    
+    <h4>Recommended Production Stack</h4>
+    <table>
+        <tr><th>Component</th><th>Service</th><th>Why This Choice</th></tr>
+        <tr><td>Frontend/Backend</td><td>Vercel</td><td>Serverless, auto-scaling, edge network</td></tr>
+        <tr><td>Database</td><td>Supabase</td><td>PostgreSQL + Connection pooling + Row security</td></tr>
+        <tr><td>File Storage</td><td>Cloudinary</td><td>Vercel Edge compatible, no local FS</td></tr>
+        <tr><td>Auth Sessions</td><td>JWT (stateless)</td><td>Required for serverless - no sticky sessions</td></tr>
+    </table>
+
+    <div class="warning-box">
+        <strong class="critical">CRITICAL for Vercel:</strong> Vercel uses serverless functions with ephemeral filesystems. 
+        You <strong>CANNOT</strong> use SQLite or local file storage. You MUST use PostgreSQL + external file storage.
+    </div>
+
+    <h2>2. Prerequisites</h2>
+
+    <div class="step">
+        <span class="step-number">A</span>
+        <strong>Accounts Required:</strong>
+        <ul>
+            <li>Vercel account (https://vercel.com) - Sign up with GitHub</li>
+            <li>Supabase account (https://supabase.com) - Sign up with GitHub</li>
+            <li>GitHub repository with your SckoolSuite code pushed</li>
+        </ul>
+    </div>
+
+    <div class="step">
+        <span class="step-number">B</span>
+        <strong>Local Requirements:</strong>
+        <pre>Node.js 18+ installed
+Git repository initialized
+Code pushed to GitHub
+Supabase CLI (optional): npm install -g supabase</pre>
+    </div>
+
+    <h2>3. Database Setup (Supabase)</h2>
+
+    <div class="step">
+        <span class="step-number">1</span>
+        <strong>Create Supabase Project</strong>
+        <ol>
+            <li>Go to https://supabase.com/dashboard</li>
+            <li>Click "New Project"</li>
+            <li>Select your organization</li>
+            <li>Project name: <code>sckoolsuite-erp</code></li>
+            <li>Database password: <strong>Generate strong password, SAVE IT!</strong></li>
+            <li>Region: Choose closest to your users (e.g., us-east-1, eu-west-1)</li>
+            <li>Click "Create new project" (takes 2-3 minutes)</li>
+        </ol>
+    </div>
+
+    <div class="step">
+        <span class="step-number">2</span>
+        <strong>Get Connection Strings</strong>
+        <p>Once project is ready:</p>
+        <ol>
+            <li>Click "Connect" (top right)</li>
+            <li>Go to "ORMs" tab</li>
+            <li>Select "Prisma"</li>
+            <li>Copy BOTH connection strings:</li>
+        </ol>
+        <pre># Transaction Pooler (for queries - connection pooled)
+DATABASE_URL="postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1"
+
+# Direct Connection (for migrations only)
+DIRECT_URL="postgresql://postgres:[password]@db.[project-ref].supabase.co:5432/postgres"</pre>
+        <div class="warning-box">
+            <strong>IMPORTANT:</strong> <code>connection_limit=1</code> is REQUIRED for Vercel serverless functions.
+            Supabase free tier allows 60 concurrent connections. With pooling, this supports thousands of users.
+        </div>
+    </div>
+
+    <div class="step">
+        <span class="step-number">3</span>
+        <strong>Configure Database Extensions</strong>
+        <p>In Supabase SQL Editor, run:</p>
+        <pre>-- Enable required extensions
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";</pre>
+    </div>
+
+    <h2>4. Project Configuration</h2>
+
+    <div class="step">
+        <span class="step-number">4</span>
+        <strong>Verify Prisma Schema</strong>
+        <p>Ensure <code>prisma/schema.prisma</code> has:</p>
+        <pre>generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}</pre>
+    </div>
+
+    <div class="step">
+        <span class="step-number">5</span>
+        <strong>Configure Next.js for Vercel</strong>
+        <p>Create/Update <code>next.config.js</code>:</p>
+        <pre>/** @type {import('next').NextConfig} */
+const nextConfig = {
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**.supabase.co',
+      },
+    ],
+  },
+  // Ensure Prisma works on Vercel
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      config.resolve.alias['@prisma/client'] = require.resolve('@prisma/client')
+    }
+    return config
+  },
+}
+
+module.exports = nextConfig</pre>
+    </div>
+
+    <div class="step">
+        <span class="step-number">6</span>
+        <strong>Configure Package.json Build Script</strong>
+        <p>Update <code>package.json</code> scripts:</p>
+        <pre>"scripts": {
+  "dev": "next dev",
+  "build": "prisma generate && next build",
+  "start": "next start",
+  "lint": "next lint",
+  "postinstall": "prisma generate"
+}</pre>
+        <div class="highlight-box">
+            <code>prisma generate && next build</code> ensures Prisma client is generated during Vercel build.
+        </div>
+    </div>
+
+    <h2>5. Environment Variables</h2>
+
+    <div class="step">
+        <span class="step-number">7</span>
+        <strong>Local Development (.env.local)</strong>
+        <p>Create <code>.env.local</code> in project root (NEVER commit this file):</p>
+        <pre># ==========================================
+# DATABASE (Supabase PostgreSQL)
+# ==========================================
+DATABASE_URL="postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1"
+DIRECT_URL="postgresql://postgres:[password]@db.[ref].supabase.co:5432/postgres"
+
+# ==========================================
+# AUTHENTICATION (NextAuth.js v5)
+# ==========================================
+NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_SECRET="your-generated-secret-min-32-chars"
+
+# ==========================================
+# OPTIONAL: FILE UPLOADS
+# ==========================================
+# Cloudinary (recommended for Vercel)
+CLOUDINARY_CLOUD_NAME="your-cloud-name"
+CLOUDINARY_API_KEY="your-api-key"
+CLOUDINARY_API_SECRET="your-api-secret"
+
+# ==========================================
+# APPLICATION
+# ==========================================
+NODE_ENV="development"</pre>
+    </div>
+
+    <div class="step">
+        <span class="step-number">8</span>
+        <strong>Generate NEXTAUTH_SECRET</strong>
+        <pre># Run this in terminal:
+openssl rand -base64 32
+
+# Or use Node.js:
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"</pre>
+        <p>Copy the output and use as NEXTAUTH_SECRET.</p>
+    </div>
+
+    <div class="step">
+        <span class="step-number">9</span>
+        <strong>Test Local Build</strong>
+        <pre># Install dependencies
+npm install
+
+# Generate Prisma client
+npx prisma generate
+
+# Run migrations (creates database tables)
+npx prisma migrate deploy
+
+# Start development server
+npm run dev</pre>
+        <p>Visit http://localhost:3000/setup to verify everything works.</p>
+    </div>
+
+    <h2>6. Vercel Deployment</h2>
+
+    <div class="step">
+        <span class="step-number">10</span>
+        <strong>Import Project to Vercel</strong>
+        <ol>
+            <li>Go to https://vercel.com/dashboard</li>
+            <li>Click "Add New..." → "Project"</li>
+            <li>Import Git Repository: Select your SckoolSuite repo</li>
+            <li>Click "Import"</li>
+        </ol>
+    </div>
+
+    <div class="step">
+        <span class="step-number">11</span>
+        <strong>Configure Build Settings</strong>
+        <p>On the "Configure Project" page:</p>
+        <table>
+            <tr><th>Setting</th><th>Value</th></tr>
+            <tr><td>Framework Preset</td><td>Next.js</td></tr>
+            <tr><td>Root Directory</td><td>./ (leave default)</td></tr>
+            <tr><td>Build Command</td><td><code>prisma generate && next build</code></td></tr>
+            <tr><td>Output Directory</td><td>.next (leave default)</td></tr>
+            <tr><td>Install Command</td><td><code>npm install</code></td></tr>
+        </table>
+    </div>
+
+    <div class="step">
+        <span class="step-number">12</span>
+        <strong>Add Environment Variables (CRITICAL)</strong>
+        <p>Expand "Environment Variables" section and add ALL of these:</p>
+        <table>
+            <tr><th>Variable Name</th><th>Value (from Supabase/Secrets)</th></tr>
+            <tr><td>DATABASE_URL</td><td>Your Supabase transaction pooler URL</td></tr>
+            <tr><td>DIRECT_URL</td><td>Your Supabase direct URL</td></tr>
+            <tr><td>NEXTAUTH_SECRET</td><td>Your generated 32+ char secret</td></tr>
+            <tr><td>NEXTAUTH_URL</td><td>https://your-project.vercel.app</td></tr>
+            <tr><td>NODE_ENV</td><td>production</td></tr>
+        </table>
+        <div class="warning-box">
+            <strong>NEXTAUTH_URL must be your production domain!</strong><br>
+            For initial deploy, use the Vercel preview URL, then update after getting custom domain.
+        </div>
+    </div>
+
+    <div class="step">
+        <span class="step-number">13</span>
+        <strong>Deploy</strong>
+        <ol>
+            <li>Click "Deploy"</li>
+            <li>Wait for build (3-5 minutes)</li>
+            <li>If build fails, check logs for errors</li>
+        </ol>
+    </div>
+
+    <div class="step">
+        <span class="step-number">14</span>
+        <strong>Run Database Migrations (One-time)</strong>
+        <p>After first deploy, you must run migrations. Options:</p>
+        
+        <h4>Option A: Vercel CLI (Recommended)</h4>
+        <pre># Install Vercel CLI
+npm i -g vercel
+
+# Login
+vercel login
+
+# Run migration with production database
+vercel env pull .env.production
+DATABASE_URL="your-production-url" npx prisma migrate deploy</pre>
+
+        <h4>Option B: Supabase SQL Editor</h4>
+        <pre># Run in Supabase SQL Editor after first deploy:
+# Check if tables exist
+SELECT * FROM information_schema.tables WHERE table_schema = 'public';</pre>
+        <p>If tables don't exist, you may need to run migrations locally pointing to production DB (be careful!).</p>
+    </div>
+
+    <h2>7. Post-Deployment</h2>
+
+    <div class="step">
+        <span class="step-number">15</span>
+        <strong>Initial Setup</strong>
+        <ol>
+            <li>Visit your deployed URL: <code>https://your-project.vercel.app/setup</code></li>
+            <li>Complete the 5-step setup wizard:
+                <ul>
+                    <li>School Details</li>
+                    <li>Academic Session</li>
+                    <li>Academic Term</li>
+                    <li>Admin User</li>
+                    <li>Review & Activate</li>
+                </ul>
+            </li>
+            <li>After activation, you'll be redirected to login</li>
+            <li>Login with the admin credentials you created</li>
+        </ol>
+    </div>
+
+    <div class="step">
+        <span class="step-number">16</span>
+        <strong>Configure Custom Domain (Optional)</strong>
+        <ol>
+            <li>In Vercel dashboard, go to your project</li>
+            <li>Click "Settings" → "Domains"</li>
+            <li>Add your domain (e.g., erp.yourschool.edu)</li>
+            <li>Follow DNS instructions provided by Vercel</li>
+            <li>Update NEXTAUTH_URL environment variable to your custom domain</li>
+            <li>Redeploy the project</li>
+        </ol>
+    </div>
+
+    <h2>8. Troubleshooting</h2>
+
+    <h4>Build Fails with "Can't reach database server"</h4>
+    <div class="warning-box">
+        <p><strong>Cause:</strong> DATABASE_URL not accessible during build</p>
+        <p><strong>Fix:</strong></p>
+        <ul>
+            <li>Verify IP allowlist in Supabase: Project Settings → Database → Network Restrictions</li>
+            <li>Add <code>0.0.0.0/0</code> (allow all) for serverless functions</li>
+            <li>Ensure connection string format is correct</li>
+        </ul>
+    </div>
+
+    <h4>Runtime Error: "PrismaClientInitializationError"</h4>
+    <div class="warning-box">
+        <p><strong>Cause:</strong> Prisma client not generated</p>
+        <p><strong>Fix:</strong> Ensure <code>prisma generate</code> runs before build:</p>
+        <pre>"build": "prisma generate && next build"</pre>
+    </div>
+
+    <h4>Authentication Not Working (Cookies Issue)</h4>
+    <div class="warning-box">
+        <p><strong>Cause:</strong> NEXTAUTH_URL mismatch or secure cookie settings</p>
+        <p><strong>Fix:</strong></p>
+        <ul>
+            <li>Verify NEXTAUTH_URL matches your actual domain exactly</li>
+            <li>For custom domains, ensure HTTPS is configured</li>
+            <li>Check browser console for CORS errors</li>
+        </ul>
+    </div>
+
+    <h4>Database Connection Pool Exhausted</h4>
+    <div class="warning-box">
+        <p><strong>Cause:</strong> Too many concurrent connections</p>
+        <p><strong>Fix:</strong></p>
+        <ul>
+            <li>Ensure <code>connection_limit=1</code> in DATABASE_URL</li>
+            <li>Use Supabase Pooler (port 6543) not direct connection (port 5432)</li>
+            <li>Consider upgrading Supabase tier for more connections</li>
+        </ul>
+    </div>
+
+    <h2>9. Production Checklist</h2>
+
+    <div class="success-box">
+        <strong>Before going live, verify ALL of these:</strong>
+        <ul>
+            <li>☐ PostgreSQL database active (Supabase dashboard shows "Healthy")</li>
+            <li>☐ All environment variables set in Vercel (check 5+ times)</li>
+            <li>☐ NEXTAUTH_SECRET is 32+ random characters</li>
+            <li>☐ NEXTAUTH_URL matches production domain exactly</li>
+            <li>☐ Database migrations run successfully (tables exist)</li>
+            <li>☐ Setup wizard completed and school activated</li>
+            <li>☐ Admin user can login successfully</li>
+            <li>☐ Custom domain configured (if applicable)</li>
+            <li>☐ HTTPS working (no mixed content warnings)</li>
+            <li>☐ Supabase backups enabled (Project Settings → Database)</li>
+            <li>☐ Vercel monitoring enabled (Analytics)</li>
+        </ul>
+    </div>
+
+    <h2>Quick Reference: Environment Variables</h2>
+
+    <table>
+        <tr><th>Variable</th><th>Required</th><th>Where to Get</th></tr>
+        <tr><td>DATABASE_URL</td><td>YES</td><td>Supabase → Connect → Prisma → Transaction pooler</td></tr>
+        <tr><td>DIRECT_URL</td><td>YES</td><td>Supabase → Connect → Prisma → Direct connection</td></tr>
+        <tr><td>NEXTAUTH_SECRET</td><td>YES</td><td><code>openssl rand -base64 32</code></td></tr>
+        <tr><td>NEXTAUTH_URL</td><td>YES</td><td>Your production domain (with https://)</td></tr>
+        <tr><td>NODE_ENV</td><td>YES</td><td>Set to "production"</td></tr>
+        <tr><td>CLOUDINARY_CLOUD_NAME</td><td>Optional</td><td>cloudinary.com</td></tr>
+    </table>
+
+    <div class="footer">
+        <p>SckoolSuite ERP - Vercel Deployment Guide v3.0</p>
+        <p>For support, review this guide or check Vercel/Supabase documentation.</p>
+    </div>
+
+</body>
+</html>
